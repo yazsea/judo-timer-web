@@ -1,0 +1,1638 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Judo Timer Web b1.70</title>
+<meta name="theme-color" content="#050607">
+
+<script>
+(function(){
+  function setDiag(t){
+    var d=document.getElementById("diagStatus");
+    if(d){ d.innerHTML=t; }
+  }
+  window.__setJudoDiag=setDiag;
+  window.onerror=function(msg,src,line,col){
+    setDiag("b1.70 JS ERROR: "+msg+" @"+line+":"+col);
+    return false;
+  };
+  window.onunhandledrejection=function(e){
+    var r=e&&e.reason;
+    setDiag("b1.70 PROMISE ERROR: "+(r&&r.message?r.message:String(r)));
+  };
+})();
+</script>
+<style>
+:root{
+  --bg:#050607; --panel:#0E1011; --panel2:#151719; --white:#F4F4F4;
+  --red:#FF2638; --yellow:#FFD21A; --green:#27E46A; --gray:#6F7477;
+  --red50:#80131C; --black30:#4D4D4D; --frame:#292C2F;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{overscroll-behavior:none}
+html,body{margin:0;width:100%;height:100%;background:var(--bg);color:var(--white);
+  font-family:"Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif;overflow:hidden;
+  overscroll-behavior:none;touch-action:manipulation}
+body{display:flex;justify-content:center}
+#app{
+  min-height:100vh;
+  min-height:100svh;
+  min-height:100dvh;width:min(100vw,540px);height:100vh;height:100svh;height:100dvh;display:grid;
+  grid-template-rows:18% 19% 1fr auto 5%;background:var(--bg);
+  padding:max(6px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right))
+          env(safe-area-inset-bottom) max(6px,env(safe-area-inset-left))}
+.timerArea,.osaArea,.scoreArea{position:relative}
+.timerArea{display:flex;align-items:center;justify-content:center}
+#matchTime{font-size:clamp(52px,19vw,104px);font-weight:900;line-height:1}
+.osaArea{display:grid;grid-template-columns:24% 46% 30%;align-items:center}
+.osaLabel{text-align:center;font-size:clamp(18px,5vw,30px);font-weight:900}
+#osaTime{text-align:center;font-size:clamp(48px,16vw,88px);font-weight:900}
+.status{display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center}
+#stateText{font-size:clamp(16px,4.5vw,28px);font-weight:900}
+#gsText{font-size:clamp(22px,6vw,36px);font-weight:900}
+.scoreArea{display:grid;grid-template-columns:1fr 34px 1fr;gap:4px;min-height:0}
+.player{background:var(--panel);position:relative;display:grid;grid-template-rows:22% 39% 39%;overflow:hidden}
+.player.red{border-top:5px solid var(--red)}
+.player.white{border-top:5px solid var(--white)}
+.shido{display:flex;align-items:center;padding:0 8px;gap:8px}
+.shidoLabel{font-weight:900;color:var(--yellow);font-size:clamp(18px,5vw,28px)}
+.lamp{width:28px;height:28px;border-radius:50%;background:#282B2E}
+.lamp.on{background:var(--yellow)}
+.scoreNum{display:flex;align-items:center;justify-content:center;font-size:clamp(62px,20vw,110px);font-weight:900}
+.player.red .scoreNum{color:var(--red)}
+.player.white .scoreNum{color:var(--white)}
+.midLabels{display:grid;grid-template-rows:1fr 1fr;align-items:center;justify-items:center;
+  font-size:clamp(20px,6vw,34px);font-weight:900}
+.controls{display:grid;grid-template-rows:repeat(4,auto);gap:2px}
+.row{display:grid;gap:2px}
+.row8{grid-template-columns:repeat(8,1fr)}
+.row5{grid-template-columns:repeat(5,1fr)}
+button{border:0;border-radius:0;color:var(--white);background:var(--panel2);font-weight:900;
+  min-height:52px;padding:4px 1px;font-size:clamp(11px,3vw,17px);touch-action:manipulation;
+  -webkit-user-select:none;user-select:none}
+button.redb{background:var(--red50)}
+button.whiteb{background:var(--black30)}
+button.green{background:var(--green)}
+button.reset{background:var(--white);color:#000}
+button:disabled{opacity:.35;pointer-events:none}
+button.holding,button:active{filter:brightness(1.35);transform:scale(.98)}
+button{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.spacer{min-height:1px}
+dialog{width:min(94vw,500px);max-height:94dvh;background:var(--panel);color:var(--white);border:0;padding:18px}
+dialog::backdrop{background:#000c}
+.setting{margin:14px 0}
+.setting label{display:block;font-weight:900;margin-bottom:6px}
+.stepper{display:grid;grid-template-columns:70px 1fr 70px;gap:8px;align-items:center}
+.stepper button{font-size:28px}
+.value{font-size:30px;font-weight:900;text-align:center;background:var(--bg);padding:12px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+@media (max-height:700px){
+  #app{grid-template-rows:16% 17% 1fr auto 3%}
+  button{min-height:46px;font-size:clamp(10px,2.7vw,15px)}
+  #matchTime{font-size:clamp(48px,17vw,88px)}
+  #osaTime{font-size:clamp(42px,14vw,74px)}
+}
+
+
+
+/* b1.70 smartphone touch stability */
+:root{--tap-min:48px}
+button{
+  min-height:var(--tap-min);
+  min-width:44px;
+}
+button:active{
+  transform:scale(.985);
+}
+@media (hover:hover) and (pointer:fine){
+  button:active{transform:none}
+}
+
+
+img,svg{user-select:none;-webkit-user-drag:none}
+button{outline:none}
+#matchReset{touch-action:none}
+
+
+/* b1.70 requested smartphone layout refinements */
+#app{
+  grid-template-rows:15% 15% 1fr auto 10%;
+  padding-top:max(3px,env(safe-area-inset-top));
+}
+.timerArea{
+  align-items:flex-start;
+  padding-top:1.5vh;
+}
+.osaArea{
+  grid-template-columns:1fr auto 1fr;
+  column-gap:0;
+  align-items:start;
+  padding-top:.5vh;
+}
+.osaLabel{
+  justify-self:center;
+  align-self:center;
+}
+#osaTime{
+  justify-self:center;
+  align-self:center;
+  min-width:2ch;
+}
+.status{
+  justify-self:center;
+  align-self:center;
+}
+.player{
+  background:transparent;
+}
+.scoreNum{
+  background:transparent;
+}
+.scoreArea{
+  margin-bottom:4px;
+}
+.lamp{
+  width:30.8px;
+  height:30.8px;
+}
+#redOsaReset,#whiteOsaReset{
+  font-size:70%;
+  white-space:nowrap;
+  word-break:keep-all;
+  overflow:hidden;
+  padding-left:0;
+  padding-right:0;
+}
+@media (max-height:700px){
+  #app{grid-template-rows:14% 14% 1fr auto 10%}
+  .timerArea{padding-top:.8vh}
+  .osaArea{padding-top:.2vh}
+}
+
+
+/* b1.70 requested smartphone layout refinements */
+#app{
+  width:min(100vw,540px);
+  max-width:100vw;
+  grid-template-rows:12.5% 12.5% 1fr auto 10%;
+  padding-top:max(1.5px,calc(env(safe-area-inset-top) * .5));
+}
+.timerArea{
+  align-items:flex-start;
+  padding-top:.75vh;
+}
+#matchTime{
+  font-size:clamp(62px,22.8vw,125px);
+  line-height:.95;
+}
+.osaArea{
+  padding-top:.25vh;
+  margin-top:-.5vh;
+}
+.scoreArea{
+  margin-top:-.5vh;
+  margin-bottom:8px;
+}
+#redOsaReset,#whiteOsaReset{
+  font-size:56%;
+  white-space:nowrap;
+  word-break:keep-all;
+}
+.controls{
+  margin-top:0;
+}
+@media (max-width:420px){
+  #app{
+    width:100vw;
+    padding-left:max(3px,env(safe-area-inset-left));
+    padding-right:max(3px,env(safe-area-inset-right));
+  }
+  button{
+    min-width:0;
+    padding-left:0;
+    padding-right:0;
+    font-size:clamp(9px,2.6vw,14px);
+  }
+  .row8,.row5{
+    min-width:0;
+  }
+  #matchTime{
+    font-size:clamp(58px,22vw,110px);
+  }
+  #osaTime{
+    font-size:clamp(42px,15vw,78px);
+  }
+}
+@media (max-width:360px){
+  #app{
+    transform-origin:top center;
+  }
+  button{
+    font-size:clamp(8px,2.45vw,12px);
+  }
+  .midLabels{
+    font-size:clamp(18px,5.4vw,30px);
+  }
+}
+@media (max-height:700px){
+  #app{grid-template-rows:12% 12% 1fr auto 10%}
+  .timerArea{padding-top:.4vh}
+  .osaArea{padding-top:0;margin-top:-.4vh}
+}
+
+
+/* b1.70 score-area vertical compaction */
+#app{
+  grid-template-rows:12.5% 12.5% minmax(0,.82fr) auto 15%;
+}
+.player{
+  grid-template-rows:20% 40% 40%;
+}
+.scoreArea{
+  align-self:stretch;
+  min-height:0;
+  padding-top:0;
+  padding-bottom:0;
+  margin-top:-1vh;
+  margin-bottom:2px;
+}
+.scoreNum{
+  line-height:.86;
+  min-height:0;
+}
+.midLabels{
+  line-height:.86;
+}
+.shido{
+  min-height:0;
+}
+@media (max-height:700px){
+  #app{grid-template-rows:12% 12% minmax(0,.82fr) auto 15%}
+  .scoreArea{margin-top:-.8vh;margin-bottom:1px}
+}
+
+
+/* b1.70 button geometry / typography / shido spacing / osa idle color */
+
+/* 1行目・2行目: 横幅に合わせた正方形を維持 */
+.controls .row8 button{
+  aspect-ratio:1 / 1;
+  min-height:0;
+  height:auto;
+}
+
+/* 全ボタン: 1行表示、改行禁止、可能な限り大きく */
+.controls button{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:clip;
+  word-break:keep-all;
+  line-height:1;
+  padding-left:1px;
+  padding-right:1px;
+}
+
+/* 1・2行目は8分割幅に合わせ、最大限読める文字サイズ */
+.controls .row8 button{
+  font-size:clamp(9px,2.75vw,16px);
+}
+
+/* 3・4行目は5分割幅を活かして大きく */
+.controls .row5 button{
+  font-size:clamp(10px,3.25vw,18px);
+}
+
+/* 抑込リセットは1行固定のまま、横幅内で最大化 */
+#redOsaReset,#whiteOsaReset{
+  font-size:clamp(7px,2.0vw,12px);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:clip;
+  word-break:keep-all;
+}
+
+/* 指導カウンターの上下余白をそれぞれ200%へ */
+.shido{
+  padding-top:16px;
+  padding-bottom:16px;
+}
+
+/* 抑込タイマー: 非動作時はグレー */
+#osaTime{
+  color:#777;
+}
+#osaLabel{
+  color:#777;
+}
+body.osa-active #osaTime,
+body.osa-active #osaLabel{
+  color:var(--yellow);
+}
+
+/* 狭いスマホでも1行維持 */
+@media (max-width:420px){
+  .controls .row8 button{font-size:clamp(8px,2.55vw,14px)}
+  .controls .row5 button{font-size:clamp(9px,3vw,16px)}
+  #redOsaReset,#whiteOsaReset{font-size:clamp(6px,1.85vw,10px)}
+}
+
+
+/* b1.70 button label and typography refinements */
+
+/* リセット以外の1・2行目ボタンは、横幅を大きく使う文字サイズへ */
+.controls .row8 button:not(#redOsaReset):not(#whiteOsaReset){
+  font-size:clamp(12px,4.0vw,22px);
+  letter-spacing:0;
+  white-space:nowrap;
+}
+
+/* リセットは従来の縮小表示を維持 */
+#redOsaReset,#whiteOsaReset{
+  font-size:clamp(6px,1.85vw,10px);
+}
+
+/* 3・4行目ボタン全体も大きく */
+.controls .row5 button{
+  font-size:clamp(12px,3.8vw,21px);
+  white-space:nowrap;
+  letter-spacing:0;
+}
+
+/* GS / 設定 / 抑込秒± はさらに120% */
+#gsBtn,#settingsBtn,#osaPlus,#osaMinus{
+  font-size:clamp(14px,4.55vw,25px);
+}
+
+/* 狭い画面では横幅に合わせて自動縮小し1行を維持 */
+@media (max-width:420px){
+  .controls .row8 button:not(#redOsaReset):not(#whiteOsaReset){
+    font-size:clamp(10px,3.75vw,19px);
+  }
+  .controls .row5 button{
+    font-size:clamp(10px,3.45vw,18px);
+  }
+  #gsBtn,#settingsBtn,#osaPlus,#osaMinus{
+    font-size:clamp(12px,4.1vw,21px);
+  }
+}
+@media (max-width:360px){
+  .controls .row8 button:not(#redOsaReset):not(#whiteOsaReset){
+    font-size:clamp(9px,3.45vw,17px);
+  }
+  .controls .row5 button{
+    font-size:clamp(9px,3.2vw,16px);
+  }
+  #gsBtn,#settingsBtn,#osaPlus,#osaMinus{
+    font-size:clamp(11px,3.8vw,19px);
+  }
+}
+
+
+/* b1.70 row 1 / row 2 button text +120% */
+.controls .row8 button:not(#redOsaReset):not(#whiteOsaReset){
+  font-size:clamp(14.4px,4.8vw,26.4px);
+}
+#redOsaReset,#whiteOsaReset{
+  font-size:clamp(7.2px,2.22vw,12px);
+}
+@media (max-width:420px){
+  .controls .row8 button:not(#redOsaReset):not(#whiteOsaReset){
+    font-size:clamp(12px,4.5vw,22.8px);
+  }
+  #redOsaReset,#whiteOsaReset{
+    font-size:clamp(7.2px,2.22vw,12px);
+  }
+}
+@media (max-width:360px){
+  .controls .row8 button:not(#redOsaReset):not(#whiteOsaReset){
+    font-size:clamp(10.8px,4.14vw,20.4px);
+  }
+}
+
+
+/* b1.70 smartphone start/stop touch reliability */
+#matchBtn{
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+
+
+/* b1.70 mobile click compatibility */
+button{
+  touch-action:manipulation;
+  pointer-events:auto;
+}
+
+
+/* b1.70 SH-M15 native click compatibility */
+button{touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,255,255,.12)}
+
+
+body{padding-bottom:20px}
+
+/* b1.70 osa timer side color / top spacing */
+#osaTime,
+#osaLabel{
+  color:#777;
+}
+body.osa-active.osa-left #osaTime,
+body.osa-active.osa-left #osaLabel{
+  color:var(--red);
+}
+body.osa-active.osa-right #osaTime,
+body.osa-active.osa-right #osaLabel{
+  color:var(--white);
+}
+
+/* 試合タイマー上部余白を、試合タイマー～抑込タイマー間の余白感に合わせる */
+.timerArea{
+  padding-top:.5vh;
+}
+
+
+/* b1.70 試合タイマー上部余白を b1.41 の300%へ */
+.timerArea{
+  padding-top:1.5vh;
+}
+
+
+/* b1.70 試合タイマー上部余白を b1.42 の300%へ */
+.timerArea{
+  padding-top:4.5vh;
+}
+
+
+/* b1.70 余白のみb1.41へ戻す */
+.timerArea{
+  padding-top:.5vh;
+}
+
+
+/* b1.70 上部余白をb1.44比500%へ。増加分は全体を下へ送る */
+.timerArea{
+  padding-top:2.5vh;
+}
+
+
+/* b1.70 score label vertical centering + match timer 120% */
+.scoreArea{
+  align-items:center;
+}
+.player{
+  align-self:stretch;
+}
+.midLabels{
+  align-self:stretch;
+  display:grid;
+  grid-template-rows:1fr 1fr;
+  align-items:center;
+  justify-items:center;
+}
+.midLabels > *{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:100%;
+  line-height:1;
+}
+
+/* 試合タイマー文字をb1.45比120%。上部余白は2.5vhを維持 */
+#matchTime{
+  font-size:clamp(74.4px,27.36vw,150px);
+  line-height:.9;
+}
+.timerArea{
+  padding-top:2.5vh;
+}
+
+
+/* b1.70 score labels downward + top spacing 200% + GS text 120% */
+.midLabels{
+  transform:translateY(8%);
+}
+
+/* 試合タイマー上部余白をb1.46比200%。増加分は全体を下へ送る */
+.timerArea{
+  padding-top:5vh;
+}
+
+/* GS文字列を120%拡大 */
+#gsBtn{
+  font-size:clamp(16.8px,5.46vw,30px);
+}
+@media (max-width:420px){
+  #gsBtn{
+    font-size:clamp(14.4px,4.92vw,25.2px);
+  }
+}
+@media (max-width:360px){
+  #gsBtn{
+    font-size:clamp(13.2px,4.56vw,22.8px);
+  }
+}
+
+
+/* b1.70 repeated layout adjustments */
+.midLabels{
+  transform:translateY(16%);
+}
+
+/* b1.47の5vhから200% = 10vh。増加分は全体を下へ送る */
+.timerArea{
+  padding-top:10vh;
+}
+
+/* b1.47のGS文字からさらに120% */
+#gsBtn{
+  font-size:clamp(20.16px,6.552vw,36px);
+}
+@media (max-width:420px){
+  #gsBtn{
+    font-size:clamp(17.28px,5.904vw,30.24px);
+  }
+}
+@media (max-width:360px){
+  #gsBtn{
+    font-size:clamp(15.84px,5.472vw,27.36px);
+  }
+}
+
+
+#secPlus,#secMinus{
+  touch-action:none;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
+
+/* b1.70: b1.48表示を維持し、試合タイマー上部余白のみ150% */
+.timerArea{
+  padding-top:15vh;
+}
+
+
+/* b1.70: 試合タイマー～抑込タイマー間のスペースをb1.44基準へ */
+.osaArea{
+  padding-top:0;
+  margin-top:-.4vh;
+}
+
+
+/* b1.70: 試合タイマー上部余白をなくす */
+.timerArea{
+  padding-top:0;
+}
+
+
+/* b1.70: 画面全体を10vh下へ移動 */
+#app{
+  transform:translateY(10vh);
+}
+
+
+/* b1.70: b1.52から画面全体を5vh上へ移動（基準位置からは5vh下） */
+#app{
+  transform:translateY(5vh);
+}
+
+
+/* b1.70: b1.53から画面全体を2vh上へ */
+#app{
+  transform:translateY(3vh);
+}
+
+
+/* b1.70 設定画面 秒ボタン 長押し連続動作 */
+#settingsDialog [data-step]{
+  touch-action:manipulation;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
+
+
+/* b1.70: リセット直後は抑込秒±を無効表示 */
+#osaPlus:disabled,#osaMinus:disabled{
+  opacity:.45;
+}
+
+
+/* b1.70: 設定画面の保存/キャンセル文字を同じ大きさ（150%） */
+#saveSettings,
+#cancelSettings{
+  font-size:150%;
+}
+
+/* b1.70: 「有」を少し上へ */
+.midLabels > div:nth-child(2){
+  transform:translateY(-8%);
+}
+
+
+/* b1.70: iPhone / Android 共通の秒±操作 */
+#secPlus,#secMinus,
+#settingsDialog [data-step="s,1"],
+#settingsDialog [data-step="s,-1"]{
+  touch-action:none;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;
+}
+
+
+/* b1.70: 表示サイズ・カウンター位置調整 */
+#matchTime{
+  font-size:clamp(66.96px,24.624vw,135px);
+}
+.scoreNum{
+  transform:scale(.9);
+}
+.midLabels > div:nth-child(2){
+  transform:translateY(-14%);
+}
+
+
+/* b1.70: b1.66の現状サイズからさらに90%へ縮小 */
+#matchTime{
+  font-size:clamp(60.264px,22.1616vw,121.5px);
+}
+.scoreNum{
+  transform:scale(.81);
+}
+.shido .lamp{
+  transform:scale(.9);
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <section class="timerArea"><div id="matchTime">4:00</div></section>
+
+  <section class="osaArea">
+    <div id="osaLabel" class="osaLabel">抑込</div>
+    <div id="osaTime">00</div>
+    <div class="status">
+      <div id="stateText">待て</div>
+      <div id="gsText">GS</div>
+</div>
+  </section>
+
+  <section class="scoreArea">
+    <div class="player red">
+      <div class="shido"><span class="shidoLabel">指</span><span class="lamp" id="ls1"></span><span class="lamp" id="ls2"></span></div>
+      <div class="scoreNum" id="lw">0</div>
+      <div class="scoreNum" id="ly">0</div>
+    </div>
+    <div class="midLabels"><div>技</div><div>有</div></div>
+    <div class="player white">
+      <div class="shido"><span class="shidoLabel">指</span><span class="lamp" id="rs1"></span><span class="lamp" id="rs2"></span></div>
+      <div class="scoreNum" id="rw">0</div>
+      <div class="scoreNum" id="ry">0</div>
+    </div>
+  </section>
+
+  <section class="controls" id="controlPanel">
+    <div class="row row8">
+      <button class="redb" data-score="left,waza,1">技+</button>
+      <button class="redb" data-score="left,yuko,1">有+</button>
+      <button class="redb" data-score="left,shido,1">指+</button>
+      <button class="redb" id="redOsa">抑込</button>
+      <button class="whiteb" data-score="right,waza,1">技+</button>
+      <button class="whiteb" data-score="right,yuko,1">有+</button>
+      <button class="whiteb" data-score="right,shido,1">指+</button>
+      <button class="whiteb" id="whiteOsa">抑込</button>
+    </div>
+    <div class="row row8">
+      <button class="redb" data-score="left,waza,-1">技-</button>
+      <button class="redb" data-score="left,yuko,-1">有-</button>
+      <button class="redb" data-score="left,shido,-1">指-</button>
+      <button class="redb" id="redOsaReset">リセット</button>
+      <button class="whiteb" data-score="right,waza,-1">技-</button>
+      <button class="whiteb" data-score="right,yuko,-1">有-</button>
+      <button class="whiteb" data-score="right,shido,-1">指-</button>
+      <button class="whiteb" id="whiteOsaReset">リセット</button>
+    </div>
+    <div class="row row5">
+      <button id="minPlus">Time分+</button>
+      <button id="secPlus">Time秒+</button>
+      <button class="green" id="matchBtn">スタート</button>
+      <button id="gsBtn">GS</button>
+      <button id="osaPlus">抑込秒+</button>
+    </div>
+    <div class="row row5">
+      <button id="minMinus">Time分-</button>
+      <button id="secMinus">Time秒-</button>
+      <button class="reset" id="matchReset">リセット</button>
+      <button id="settingsBtn">設定</button>
+      <button id="osaMinus">抑込秒-</button>
+    </div>
+  </section>
+  <div class="spacer" id="versionTag" aria-label="version"></div>
+</div>
+
+<dialog id="settingsDialog">
+  <div class="setting"><label>試合タイマー 分</label>
+    <div class="stepper"><button data-step="m,-1">−</button><div class="value" id="setM">4</div><button data-step="m,1">＋</button></div>
+  </div>
+  <div class="setting"><label>試合タイマー 秒</label>
+    <div class="stepper"><button data-step="s,-1">−</button><div class="value" id="setS">0</div><button data-step="s,1">＋</button></div>
+  </div>
+  <div class="setting"><label>抑込 有効 秒数</label>
+    <div class="stepper"><button data-step="y,-1">−</button><div class="value" id="setY">5</div><button data-step="y,1">＋</button></div>
+  </div>
+  <div class="setting"><label>抑込 技あり 秒数</label>
+    <div class="stepper"><button data-step="w,-1">−</button><div class="value" id="setW">10</div><button data-step="w,1">＋</button></div>
+  </div>
+  <div class="actions"><button class="green" id="saveSettings">保存</button><button id="cancelSettings">キャンセル</button></div>
+</dialog>
+
+<script>
+const APP_VERSION="b1.70";
+const STATE_SCHEMA=1;
+const STORAGE_KEY="judo-timer-web-state-b1";
+const STORAGE_BACKUP_KEY="judo-timer-web-state-b1-backup";
+const DEFAULT_MATCH=240, DEFAULT_YUKO=5, DEFAULT_WAZA=10;
+const S={
+  players:{left:{yuko:0,waza:0,shido:0},right:{yuko:0,waza:0,shido:0}},
+  matchSetting:DEFAULT_MATCH, matchLeft:DEFAULT_MATCH, matchRunning:false,
+  matchStartedOnce:false,
+  golden:false, gsNotice:false, last:performance.now(), matchAnchor:null,
+  osaRunning:false, osaSide:"left", osaTime:0, osaStarted:null,
+  osaBest:{left:0,right:0}, yukoSec:DEFAULT_YUKO, wazaSec:DEFAULT_WAZA,
+};
+const $=id=>document.getElementById(id);
+
+
+
+let saveTimer=null;
+let lastSavedState="";
+function normalizedSnapshot(){
+  const snapshot=JSON.parse(JSON.stringify(S));
+  snapshot.matchRunning=false;
+  // 再読み込み時は計時を止めるが、押さえ込み選択状態は保持する。
+  snapshot.osaRunning=!!S.osaRunning;
+  snapshot.osaStarted=null;
+  delete snapshot.last;
+  delete snapshot.matchAnchor;
+  return snapshot;
+}
+function saveState(){
+  if(saveTimer){
+    clearTimeout(saveTimer);
+    saveTimer=null;
+  }
+  try{
+    const snapshot=normalizedSnapshot();
+    const stateJson=JSON.stringify(snapshot);
+    // 状態が変わっていない定期保存ではlocalStorageを書き換えない。
+    if(stateJson===lastSavedState) return;
+    const next=JSON.stringify({
+      schema:STATE_SCHEMA,
+      appVersion:APP_VERSION,
+      savedAt:Date.now(),
+      state:snapshot
+    });
+    const current=localStorage.getItem(STORAGE_KEY);
+    // 主保存が正常なJSONなら、上書き前に直前状態をバックアップする。
+    if(current){
+      try{
+        const parsed=JSON.parse(current);
+        const source=(parsed && parsed.state) ? parsed.state : parsed;
+        if(sanitizeState(source)) localStorage.setItem(STORAGE_BACKUP_KEY,current);
+      }catch(_e){}
+    }
+    localStorage.setItem(STORAGE_KEY,next);
+    lastSavedState=stateJson;
+  }catch(_e){}
+}
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>{
+    saveTimer=null;
+    saveState();
+  },120);
+}
+function sanitizeState(v){
+  if(!v || typeof v!=="object") return null;
+  const cleanPlayer=p=>({
+    yuko:clamp(Math.trunc(Number(p && p.yuko)||0),0,9),
+    waza:clamp(Math.trunc(Number(p && p.waza)||0),0,1),
+    shido:clamp(Math.trunc(Number(p && p.shido)||0),0,2)
+  });
+  const side=v.osaSide==="right"?"right":"left";
+  const matchSetting=clamp(Number(v.matchSetting)||DEFAULT_MATCH,0,599);
+  const yukoSec=clamp(Number(v.yukoSec)||DEFAULT_YUKO,1,18);
+  let wazaSec=clamp(Number(v.wazaSec)||DEFAULT_WAZA,2,19);
+  if(wazaSec<=yukoSec) wazaSec=Math.min(19,yukoSec+1);
+
+  return {
+    players:{left:cleanPlayer(v.players && v.players.left),right:cleanPlayer(v.players && v.players.right)},
+    matchSetting, matchLeft:clamp(Number(v.matchLeft)||0,0,599), matchRunning:false,
+    golden:!!v.golden, gsNotice:!!v.gsNotice, last:performance.now(),
+    osaRunning:!!v.osaRunning, osaSide:side, osaTime:clamp(Number(v.osaTime)||0,0,20), osaStarted:null,
+    osaBest:{
+      left:clamp(Number(v.osaBest && v.osaBest.left)||0,0,20),
+      right:clamp(Number(v.osaBest && v.osaBest.right)||0,0,20)
+    },
+    yukoSec,wazaSec
+  };
+}
+function restoreState(){
+  const tryRestore=raw=>{
+    if(!raw) return false;
+    try{
+      const parsed=JSON.parse(raw);
+      // b1.03以前の保存形式も読み込めるよう後方互換を維持する。
+      const source=(parsed && parsed.state) ? parsed.state : parsed;
+      const clean=sanitizeState(source);
+      if(!clean) return false;
+      Object.assign(S,clean);
+      S.matchAnchor=null;
+      guardRuntimeState();
+      lastSavedState=JSON.stringify(normalizedSnapshot());
+      return true;
+    }catch(_e){ return false; }
+  };
+  try{
+    if(tryRestore(localStorage.getItem(STORAGE_KEY))) return;
+    // 主保存が破損している場合は、直前の正常バックアップから自動復旧する。
+    if(tryRestore(localStorage.getItem(STORAGE_BACKUP_KEY))) saveState();
+  }catch(_e){}
+}
+
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function guardRuntimeState(){
+  let changed=false;
+  const finite=(v,fallback)=>Number.isFinite(v)?v:fallback;
+  const fixInt=(obj,key,min,max)=>{
+    const next=clamp(Math.trunc(finite(Number(obj[key]),min)),min,max);
+    if(obj[key]!==next){ obj[key]=next; changed=true; }
+  };
+
+  for(const side of ["left","right"]){
+    const p=S.players[side] || (S.players[side]={yuko:0,waza:0,shido:0});
+    fixInt(p,"yuko",0,9);
+    fixInt(p,"waza",0,1);
+    fixInt(p,"shido",0,2);
+  }
+
+  if(S.osaSide!=="left" && S.osaSide!=="right"){ S.osaSide="left"; changed=true; }
+
+  const setting=clamp(finite(Number(S.matchSetting),DEFAULT_MATCH),0,599);
+  if(S.matchSetting!==setting){ S.matchSetting=setting; changed=true; }
+
+  let match=finite(Number(S.matchLeft),S.golden?0:S.matchSetting);
+  match=S.golden?Math.max(0,match):clamp(match,0,599);
+  if(S.matchLeft!==match){ S.matchLeft=match; changed=true; }
+
+  const osa=clamp(finite(Number(S.osaTime),0),0,20);
+  if(S.osaTime!==osa){ S.osaTime=osa; changed=true; }
+
+  for(const side of ["left","right"]){
+    const best=clamp(finite(Number(S.osaBest && S.osaBest[side]),0),0,20);
+    if(!S.osaBest) S.osaBest={left:0,right:0};
+    if(S.osaBest[side]!==best){ S.osaBest[side]=best; changed=true; }
+  }
+
+  const y=clamp(Math.trunc(finite(Number(S.yukoSec),DEFAULT_YUKO)),1,18);
+  let w=clamp(Math.trunc(finite(Number(S.wazaSec),DEFAULT_WAZA)),2,19);
+  if(w<=y) w=Math.min(19,y+1);
+  if(S.yukoSec!==y){ S.yukoSec=y; changed=true; }
+  if(S.wazaSec!==w){ S.wazaSec=w; changed=true; }
+
+  if(S.matchAnchor!==null && !Number.isFinite(S.matchAnchor)){ S.matchAnchor=null; changed=true; }
+  if(S.osaStarted!==null && !Number.isFinite(S.osaStarted)){ S.osaStarted=null; changed=true; }
+
+  S.matchRunning=!!S.matchRunning;
+  S.golden=!!S.golden;
+  S.gsNotice=!!S.gsNotice;
+  S.osaRunning=!!S.osaRunning;
+  return changed;
+}
+function haptic(ms=12){
+  try{ if('vibrate' in navigator) navigator.vibrate(ms); }catch(_e){}
+}
+
+function isStandaloneDisplay(){
+  try{
+    return window.matchMedia("(display-mode: standalone)").matches ||
+           window.navigator.standalone===true;
+  }catch(_e){ return false; }
+}
+async function enterRefereeDisplay(){
+  // PWA起動時は既にアプリ表示なので、余計なFullscreen要求は行わない。
+  if(!isStandaloneDisplay() && !document.fullscreenElement){
+    try{ if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); }catch(_e){}
+  }
+  // 対応端末では縦向きを固定。未対応環境では何もしない。
+  try{ if(screen.orientation && screen.orientation.lock) await screen.orientation.lock("portrait-primary"); }catch(_e){}
+}
+
+function tryInitialFullscreen(){
+  // ブラウザによってはユーザー操作なしのFullscreen要求が拒否される。
+  // 起動直後に一度試し、失敗時は画面タップで再試行する。
+  try{
+    if(!isStandaloneDisplay() && !document.fullscreenElement && document.documentElement.requestFullscreen){
+      var p=document.documentElement.requestFullscreen();
+      if(p && typeof p.catch==="function") p.catch(function(){});
+    }
+  }catch(_e){}
+}
+
+function isTapInsideControlPanel(target){
+  var panel=$("controlPanel");
+  if(!panel || !target) return false;
+  return panel===target || panel.contains(target);
+}
+
+function fullscreenFallbackFromTap(e){
+  if(isSettingsOpen()) return;
+  if(isStandaloneDisplay() || document.fullscreenElement) return;
+  if(isTapInsideControlPanel(e.target)) return;
+  enterRefereeDisplay();
+}
+
+function score(side,kind,d){
+  if(isSettingsOpen()) return;
+  haptic(8);
+  const p=S.players[side];
+  const key=kind==="yuko"?"yuko":kind==="waza"?"waza":kind==="shido"?"shido":null;
+  if(!key) return;
+  const max=key==="yuko"?9:key==="waza"?1:2;
+  const next=clamp(p[key]+d,0,max);
+  if(next===p[key]) return;
+p[key]=next;
+  scheduleSave(); render();
+}
+function award(side,t){
+  const p=S.players[side];
+  if(p.waza===0 && t>=S.wazaSec && t<20){
+p.waza=1;
+  }else if(t>=S.yukoSec && t<S.wazaSec && p.yuko<9){
+p.yuko=clamp(p.yuko+1,0,9);
+  }
+}
+function startOsa(side){
+  if(!S.matchRunning) return;
+
+  var previousSide=(side==="left")?"right":"left";
+
+  // 反対側が動作中なら、その時点の秒数で得点判定してから0へ戻す。
+  if(S.osaRunning && S.osaSide===previousSide){
+    var now=performance.now()/1000;
+    if(S.osaStarted!==null){
+      S.osaTime=Math.max(0,now-S.osaStarted);
+      S.osaBest[previousSide]=Math.max(S.osaBest[previousSide],S.osaTime);
+    }
+    stopOsa(previousSide,true);
+    S.osaBest[previousSide]=0;
+    S.osaTime=0;
+    S.osaStarted=null;
+  }
+
+  // 反対側が一時停止中なら、残っている秒数で得点判定してから0へ戻す。
+  if(!S.osaRunning && S.osaBest[previousSide]>0){
+    var pausedTime=S.osaBest[previousSide];
+    award(previousSide,pausedTime);
+    S.osaBest[previousSide]=0;
+    S.osaTime=0;
+    S.osaStarted=null;
+  }
+
+  // 新しい側は0秒から開始。
+  S.osaBest[side]=0;
+  S.osaSide=side;
+  S.osaTime=0;
+  S.osaRunning=true;
+  S.osaStarted=performance.now()/1000;
+  scheduleSave();
+  render();
+}
+function stopOsa(side=S.osaSide,doAward=true){
+  if(!S.osaRunning || S.osaSide!==side) return;
+  if(S.osaStarted!==null) S.osaTime=Math.max(0,performance.now()/1000-S.osaStarted);
+  S.osaRunning=false; S.osaBest[side]=Math.max(S.osaBest[side],S.osaTime); S.osaStarted=null;
+  if(doAward) award(side,S.osaTime); scheduleSave(); render();
+}
+function toggleOsa(side){
+  if(isSettingsOpen()) return;
+  haptic(12);
+  S.osaRunning && S.osaSide===side ? stopOsa(side,true) : startOsa(side);
+}
+function resetOsa(side){
+  if(isSettingsOpen() || S.osaRunning) return;
+
+  // 赤/白どちらのリセットボタンでも、両方の抑込タイマーを0へ初期化する。
+  // リセット操作では秒数判定による得点処理を行わない。
+  S.osaRunning=false;
+  S.osaStarted=null;
+  S.osaTime=0;
+  S.osaBest.left=0;
+  S.osaBest.right=0;
+  scheduleSave();
+  render();
+}
+function startMatch(){
+  const now=performance.now();
+
+  // 再始動時は抑込カウントを0へ戻す。
+  if(S.matchStartedOnce){
+    S.osaRunning=false;
+    S.osaTime=0;
+    S.osaStarted=null;
+    S.osaBest.left=0;
+    S.osaBest.right=0;
+  }
+
+  S.matchStartedOnce=true;
+  S.matchRunning=true;
+  S.last=now;
+  S.matchAnchor=S.golden ? now/1000-S.matchLeft : now/1000+S.matchLeft;
+  updateWakeLock();
+  scheduleSave(); render();
+}
+function stopMatch(){
+  const now=performance.now()/1000;
+  if(S.matchRunning && S.matchAnchor!==null){
+    S.matchLeft=S.golden ? Math.max(0,now-S.matchAnchor) : Math.max(0,S.matchAnchor-now);
+  }
+
+  // 試合タイマー停止時、動作中の抑込タイマーも同時に停止する。
+  if(S.osaRunning){
+    if(S.osaStarted!==null){
+      S.osaTime=Math.max(0,now-S.osaStarted);
+      S.osaBest[S.osaSide]=Math.max(S.osaBest[S.osaSide],S.osaTime);
+    }
+    S.osaRunning=false;
+    S.osaStarted=null;
+  }
+
+  S.matchRunning=false;
+  S.matchAnchor=null;
+  updateWakeLock();
+  scheduleSave(); render();
+}
+function toggleMatch(){
+  if(isSettingsOpen()) return;
+  haptic(14);
+  if(S.matchRunning){
+    stopMatch();
+  }else{
+    startMatch();
+    // スマホでは計時開始を最優先し、その後に全画面/縦固定を試行する。
+    Promise.resolve().then(()=>enterRefereeDisplay()).catch(()=>{});
+  }
+}
+function startGS(){
+  if(S.matchRunning || S.golden || S.matchLeft>0.0001) return;
+  // GSボタンではGS状態へ切り替えるだけで、試合タイマーは開始しない。
+  S.golden=true;
+  S.gsNotice=true;
+  S.matchLeft=0;
+  S.matchRunning=false;
+  S.matchAnchor=null;
+  updateWakeLock();
+  scheduleSave();
+  render();
+}
+function gsAction(){
+  if(!canUseStoppedControls()) return;
+  haptic(12);
+  if(!S.golden){ if(S.matchLeft<=0.0001) startGS(); return; }
+  S.gsNotice=!S.gsNotice; scheduleSave(); render();
+}
+function isSettingsOpen(){
+  var d=$("settingsDialog"); return !!(d && d.open);
+}
+function canUseStoppedControls(){
+  return !S.matchRunning && !isSettingsOpen();
+}
+function adjustMatch(sec){
+  if(!canUseStoppedControls()) return;
+
+  // Time分- は「分」だけを1減らし、秒表示は変更しない。
+  // 例: 4:35→3:35→2:35→1:35→0:35。分が0ならそれ以上は減らさない。
+  if(sec===-60){
+    var whole=Math.floor(S.matchLeft);
+    var minutes=Math.floor(whole/60);
+    var seconds=whole%60;
+    if(minutes<=0) return;
+    S.matchLeft=(minutes-1)*60+seconds;
+  }else{
+    S.matchLeft=clamp(S.matchLeft+sec,0,599);
+  }
+  scheduleSave();
+  render();
+}
+function adjustOsa(sec){
+  if(!canUseStoppedControls() || !S.matchStartedOnce) return;
+  S.osaTime=clamp(S.osaTime+sec,0,20); S.osaBest[S.osaSide]=S.osaTime;
+  // 試合停止中の手動補正では、実時間計測を開始しない。
+  if(S.osaRunning) S.osaStarted=null;
+  scheduleSave(); render();
+}
+function resetMatchToDefault(){
+  // 試合タイマーまたは抑込タイマー作動中は、試合タイマーリセットを無効化。
+  if(S.matchRunning || S.osaRunning) return;
+
+  // リセット長押し：試合状態・設定・全カウンターを初期値へ戻す。
+  S.matchRunning=false;
+  S.golden=false;
+  S.gsNotice=false;
+  S.matchSetting=DEFAULT_MATCH;
+  S.matchLeft=DEFAULT_MATCH;
+  S.matchStartedOnce=false;
+  S.matchAnchor=null;
+  S.last=performance.now();
+
+  S.players.left.yuko=0;
+  S.players.left.waza=0;
+  S.players.left.shido=0;
+  S.players.right.yuko=0;
+  S.players.right.waza=0;
+  S.players.right.shido=0;
+
+  S.osaRunning=false;
+  S.osaSide="left";
+  S.osaTime=0;
+  S.osaStarted=null;
+  S.osaBest.left=0;
+  S.osaBest.right=0;
+
+  S.yukoSec=DEFAULT_YUKO;
+  S.wazaSec=DEFAULT_WAZA;
+
+  updateWakeLock();
+  scheduleSave();
+  render();
+}
+
+let wakeLock=null;
+function freezeForHidden(){
+  if(document.hidden){
+    // rAF停止中に試合/押さえ込みだけ実時間で進まないよう現在値を確定する。
+    const now=performance.now()/1000;
+    if(S.matchRunning && S.matchAnchor!==null){
+      S.matchLeft=S.golden ? Math.max(0,now-S.matchAnchor) : Math.max(0,S.matchAnchor-now);
+      S.matchAnchor=null;
+    }
+    if(S.osaRunning && S.osaStarted!==null){
+      S.osaTime=Math.max(0,now-S.osaStarted);
+      S.osaBest[S.osaSide]=Math.max(S.osaBest[S.osaSide],S.osaTime);
+      S.osaStarted=null;
+    }
+    saveState();
+  }
+}
+function resumeFromHidden(){
+  const now=performance.now();
+  S.last=now;
+  if(S.matchRunning){
+    S.matchAnchor=S.golden ? now/1000-S.matchLeft : now/1000+S.matchLeft;
+  }
+  if(S.matchRunning && S.osaRunning && S.osaStarted===null){
+    S.osaStarted=now/1000-S.osaTime;
+  }
+  if(isSettingsOpen()){
+    S.matchRunning=false;
+    S.matchAnchor=null;
+  }
+  updateWakeLock();
+  scheduleSave();
+  render();
+}
+async function updateWakeLock(){
+  try{
+    if(S.matchRunning && !document.hidden && 'wakeLock' in navigator){
+      if(!wakeLock){
+        wakeLock=await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener("release",()=>{ wakeLock=null; },{once:true});
+      }
+    }else if(wakeLock){
+      const current=wakeLock;
+      wakeLock=null;
+      await current.release();
+    }
+  }catch(_e){ wakeLock=null; }
+}
+
+function render(){
+  if($("matchReset")) $("matchReset").disabled=!!(S.matchRunning || S.osaRunning);
+  document.body.classList.toggle("osa-active",!!S.osaRunning);
+  document.body.classList.toggle("osa-left",!!S.osaRunning && S.osaSide==="left");
+  document.body.classList.toggle("osa-right",!!S.osaRunning && S.osaSide==="right");
+  guardRuntimeState();
+  // 通常試合は残り時間なので切り上げ表示。GSは経過時間なので切り捨て表示。
+  // これにより4:00開始直後に3:59へ落ちる表示誤差を防ぐ。
+  const rawTotal=S.golden ? Math.floor(S.matchLeft) : Math.ceil(S.matchLeft);
+  const total=Math.max(0,Math.min(599,rawTotal));
+  $("matchTime").textContent=`${Math.floor(total/60)}:${String(total%60).padStart(2,"0")}`;
+  $("osaTime").textContent=String(Math.floor(clamp(S.osaTime,0,20))).padStart(2,"0");
+  
+  
+
+  const paused=!S.matchRunning && S.matchLeft>0.0001 && S.matchLeft<S.matchSetting-0.0001;
+  $("stateText").textContent=S.matchRunning?"開始":"待て";
+  $("stateText").style.color=S.matchRunning?"var(--green)":(paused?"var(--yellow)":"var(--gray)");
+  $("gsText").style.color=S.gsNotice?"var(--yellow)":"#45494C";
+
+  for(const [pre,side] of [["l","left"],["r","right"]]){
+    const p=S.players[side];
+    $(pre+"w").textContent=p.waza; $(pre+"y").textContent=p.yuko;
+    $(pre+"s1").classList.toggle("on",p.shido>=1); $(pre+"s2").classList.toggle("on",p.shido>=2);
+  }
+
+  $("redOsa").textContent=S.osaRunning&&S.osaSide==="left"?"×":"抑込";
+  $("whiteOsa").textContent=S.osaRunning&&S.osaSide==="right"?"×":"抑込";
+  $("redOsa").disabled=!S.matchRunning;
+  $("whiteOsa").disabled=!S.matchRunning;
+  $("redOsaReset").disabled=!!S.osaRunning;
+  $("whiteOsaReset").disabled=!!S.osaRunning;
+  $("redOsaReset").setAttribute("aria-disabled",String($("redOsaReset").disabled));
+  $("whiteOsaReset").setAttribute("aria-disabled",String($("whiteOsaReset").disabled));
+  $("matchBtn").textContent=S.matchRunning?"ストップ":"スタート";
+  $("osaPlus").disabled=!!(S.matchRunning || !S.matchStartedOnce);
+  $("osaMinus").disabled=!!(S.matchRunning || !S.matchStartedOnce);
+
+  const modalOpen=isSettingsOpen();
+  const competitionIds=[
+    "matchBtn","matchReset","gsBtn",
+    "redOsa","whiteOsa","redOsaReset","whiteOsaReset",
+    "minPlus","secPlus","osaPlus","minMinus","secMinus","osaMinus"
+  ];
+
+  // 通常時のdisabled状態を毎回再計算する。
+  $("matchReset").disabled=!!(S.matchRunning || S.osaRunning);
+  $("redOsa").disabled=!S.matchRunning;
+  $("whiteOsa").disabled=!S.matchRunning;
+  $("redOsaReset").disabled=!!S.osaRunning;
+  $("whiteOsaReset").disabled=!!S.osaRunning;
+  $("osaPlus").disabled=!!(S.matchRunning || !S.matchStartedOnce);
+  $("osaMinus").disabled=!!(S.matchRunning || !S.matchStartedOnce);
+
+  if(modalOpen){
+    competitionIds.forEach(function(id){
+      var el=$(id);
+      if(el) el.disabled=true;
+    });
+  }
+
+  const stoppedOnly=["minPlus","secPlus","osaPlus","minMinus","secMinus","settingsBtn","osaMinus"];
+  stoppedOnly.forEach(id=>{
+    const el=$(id);
+    var disabled=!canUseStoppedControls();
+    if((id==="osaPlus" || id==="osaMinus") && !S.matchStartedOnce) disabled=true;
+    el.disabled=disabled;
+    el.setAttribute("aria-disabled",String(el.disabled));
+  });
+  const gsUsable=!S.matchRunning && (S.golden||S.matchLeft<=0.0001);
+  $("gsBtn").disabled=!gsUsable; $("gsBtn").setAttribute("aria-disabled",String($("gsBtn").disabled)); $("gsBtn").textContent=S.golden?(S.gsNotice?"GS ON":"GS OFF"):"GS";
+}
+function loop(now){
+  S.last=now;
+  if(S.matchRunning){
+    const nowSec=now/1000;
+    if(S.matchAnchor===null){
+      S.matchAnchor=S.golden ? nowSec-S.matchLeft : nowSec+S.matchLeft;
+    }
+    if(S.golden) S.matchLeft=Math.max(0,nowSec-S.matchAnchor);
+    else{
+      S.matchLeft=Math.max(0,S.matchAnchor-nowSec);
+      if(S.matchLeft<=0){
+        S.matchLeft=0;
+        S.matchAnchor=null;
+        if(S.osaRunning){
+          if(S.osaStarted!==null){
+            S.osaTime=Math.max(0,performance.now()/1000-S.osaStarted);
+            S.osaBest[S.osaSide]=Math.max(S.osaBest[S.osaSide],S.osaTime);
+          }
+          S.osaRunning=false;
+          S.osaStarted=null;
+        }
+        S.matchRunning=false;
+        S.matchAnchor=null;
+        updateWakeLock();
+        scheduleSave();
+      }
+    }
+  }
+  if(S.osaRunning && S.osaStarted!==null){
+    S.osaTime=Math.max(0,performance.now()/1000-S.osaStarted);
+    S.osaBest[S.osaSide]=Math.max(S.osaBest[S.osaSide],S.osaTime);
+    const limit=S.players[S.osaSide].waza===0?20:10;
+    if(S.osaTime>=limit){
+      S.osaTime=limit;
+      if(S.golden && limit===20 && S.matchRunning){ S.matchRunning=false; S.matchAnchor=null; updateWakeLock(); }
+      S.osaRunning=false; S.osaBest[S.osaSide]=Math.max(S.osaBest[S.osaSide],S.osaTime);
+      S.osaStarted=null; award(S.osaSide,S.osaTime); scheduleSave();
+    }
+  }
+  guardRuntimeState();
+  render(); requestAnimationFrame(loop);
+}
+
+document.querySelectorAll("[data-score]").forEach(function(b){
+  b.addEventListener("click",function(){
+    var parts=b.dataset.score.split(",");
+    score(parts[0],parts[1],Number(parts[2]));
+  });
+});
+$("redOsa").addEventListener("click",function(){toggleOsa("left");});
+$("whiteOsa").addEventListener("click",function(){toggleOsa("right");});
+$("redOsaReset").addEventListener("click",function(){resetOsa("left");});
+$("whiteOsaReset").addEventListener("click",function(){resetOsa("right");});
+$("matchBtn").addEventListener("click",function(){
+  toggleMatch();
+});
+$("gsBtn").addEventListener("click",gsAction);
+$("minPlus").addEventListener("click",function(){adjustMatch(60);});
+$("minMinus").addEventListener("click",function(){adjustMatch(-60);});
+$("osaPlus").addEventListener("click",function(){adjustOsa(1);});
+$("osaMinus").addEventListener("click",function(){adjustOsa(-1);});
+
+var secHoldTimer=null, secRepeatTimer=null, secHoldButton=null, secHoldPointerId=null, secSuppressClickUntil=0;
+
+function stopSecRepeat(){
+  if(secHoldTimer){ clearTimeout(secHoldTimer); secHoldTimer=null; }
+  if(secRepeatTimer){ clearInterval(secRepeatTimer); secRepeatTimer=null; }
+  if(secHoldButton && secHoldPointerId!==null){
+    try{
+      if(secHoldButton.hasPointerCapture && secHoldButton.hasPointerCapture(secHoldPointerId)){
+        secHoldButton.releasePointerCapture(secHoldPointerId);
+      }
+    }catch(_e){}
+  }
+  secHoldButton=null;
+  secHoldPointerId=null;
+}
+
+function beginSecRepeat(button,delta,e){
+  if(!canUseStoppedControls() || button.disabled) return;
+  stopSecRepeat();
+  secHoldButton=button;
+  secHoldPointerId=(e && e.pointerId!==undefined)?e.pointerId:null;
+  try{
+    if(secHoldPointerId!==null && button.setPointerCapture) button.setPointerCapture(secHoldPointerId);
+  }catch(_e){}
+
+  secHoldTimer=setTimeout(function(){
+    secHoldTimer=null;
+    secSuppressClickUntil=Date.now()+800;
+    adjustMatch(delta);
+    secRepeatTimer=setInterval(function(){
+      if(!canUseStoppedControls() || button.disabled){
+        stopSecRepeat();
+        return;
+      }
+      adjustMatch(delta);
+    },100);
+  },600);
+}
+
+function bindSecRepeat(button,delta){
+  button.addEventListener("pointerdown",function(e){
+    if(e.isPrimary===false || (e.pointerType==="mouse" && e.button!==0)) return;
+    beginSecRepeat(button,delta,e);
+  });
+  button.addEventListener("pointerup",function(){ stopSecRepeat(); });
+  button.addEventListener("pointercancel",function(){ stopSecRepeat(); });
+  button.addEventListener("lostpointercapture",function(){ stopSecRepeat(); });
+  button.addEventListener("click",function(e){
+    if(Date.now()<secSuppressClickUntil){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      stopSecRepeat();
+      return;
+    }
+    adjustMatch(delta);
+  },true);
+  button.addEventListener("contextmenu",function(e){ e.preventDefault(); });
+}
+
+bindSecRepeat($("secPlus"),1);
+bindSecRepeat($("secMinus"),-1);
+document.addEventListener("visibilitychange",function(){ if(document.hidden) stopSecRepeat(); });
+window.addEventListener("blur",stopSecRepeat);
+
+let resetTapCount=0;
+let resetTapTimer=null;
+function handleResetTripleTap(e){
+  if(S.matchRunning || S.osaRunning || isSettingsOpen()) return;
+  if(e && e.preventDefault) e.preventDefault();
+
+  resetTapCount++;
+  clearTimeout(resetTapTimer);
+
+  if(resetTapCount>=3){
+    resetTapCount=0;
+    resetTapTimer=null;
+    resetMatchToDefault();
+    return;
+  }
+
+  resetTapTimer=setTimeout(function(){
+    resetTapCount=0;
+    resetTapTimer=null;
+  },700);
+}
+$("matchReset").addEventListener("click",handleResetTripleTap);
+$("matchReset").addEventListener("contextmenu",function(e){e.preventDefault();});
+
+const dlg=$("settingsDialog");
+dlg.addEventListener("pointerdown",e=>{
+  if(e.target===dlg) e.stopPropagation();
+});
+dlg.addEventListener("close",()=>{
+  try{ if(document.activeElement && document.activeElement.blur) document.activeElement.blur(); }catch(_e){}
+  S.last=performance.now();
+  guardRuntimeState();
+  render();
+});
+dlg.addEventListener("cancel",e=>{
+  e.preventDefault();
+  dlg.close();
+});
+$("settingsBtn").addEventListener("click",function(){
+  if(!canUseStoppedControls()) return;
+  $("setM").textContent=Math.floor(S.matchSetting/60);
+  $("setS").textContent=S.matchSetting%60;
+  $("setY").textContent=S.yukoSec;
+  $("setW").textContent=S.wazaSec;
+  dlg.showModal();
+  render();
+  setTimeout(()=>{ try{ var sm=$("setMatchMin"); if(sm && sm.focus) sm.focus(); }catch(_e){} },0);
+});
+document.querySelectorAll("[data-step]").forEach(function(b){
+  var holdTimer=null;
+  var repeatTimer=null;
+  var activePointerId=null;
+  var suppressClickUntil=0;
+
+  function info(){
+    var p=b.dataset.step.split(",");
+    return {
+      k:p[0],
+      d:Number(p[1]),
+      id:{m:"setM",s:"setS",y:"setY",w:"setW"}[p[0]],
+      lim:{m:[0,9],s:[0,59],y:[1,18],w:[2,19]}[p[0]]
+    };
+  }
+
+  function stepOnce(){
+    var x=info();
+    $(x.id).textContent=clamp(Number($(x.id).textContent)+x.d,x.lim[0],x.lim[1]);
+  }
+
+  function stopHold(){
+    if(holdTimer){ clearTimeout(holdTimer); holdTimer=null; }
+    if(repeatTimer){ clearInterval(repeatTimer); repeatTimer=null; }
+    if(activePointerId!==null){
+      try{
+        if(b.hasPointerCapture && b.hasPointerCapture(activePointerId)) b.releasePointerCapture(activePointerId);
+      }catch(_e){}
+    }
+    activePointerId=null;
+  }
+
+  // iPhone/Android共通: 設定画面の「試合タイマー 秒」だけ長押し連続。
+  // その他の設定値は従来どおり1タップ1カウント。
+  if(info().k==="s"){
+    b.addEventListener("pointerdown",function(e){
+      if(e.isPrimary===false || (e.pointerType==="mouse" && e.button!==0)) return;
+      stopHold();
+      activePointerId=(e.pointerId!==undefined)?e.pointerId:null;
+      try{ if(activePointerId!==null && b.setPointerCapture) b.setPointerCapture(activePointerId); }catch(_e){}
+      holdTimer=setTimeout(function(){
+        holdTimer=null;
+        suppressClickUntil=Date.now()+800;
+        stepOnce();
+        repeatTimer=setInterval(stepOnce,100);
+      },600);
+    });
+    b.addEventListener("pointerup",stopHold);
+    b.addEventListener("pointercancel",stopHold);
+    b.addEventListener("lostpointercapture",stopHold);
+    b.addEventListener("click",function(e){
+      if(Date.now()<suppressClickUntil){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        stopHold();
+        return;
+      }
+      stepOnce();
+    },true);
+    b.addEventListener("contextmenu",function(e){e.preventDefault();});
+  }else{
+    b.addEventListener("click",function(e){
+      if(e && e.isTrusted===false) return;
+      stepOnce();
+    });
+  }
+
+  document.addEventListener("visibilitychange",function(){ if(document.hidden) stopHold(); });
+  window.addEventListener("blur",stopHold);
+});
+$("cancelSettings").addEventListener("click",function(){
+  saveState();
+  dlg.close();
+  location.reload();
+});
+dlg.addEventListener("close",function(){render();});
+$("saveSettings").addEventListener("click",function(){
+  if(!dlg.open) return;
+  const m=+$("setM").textContent,s=+$("setS").textContent,y=+$("setY").textContent,w=+$("setW").textContent;
+  if(!(1<=y && y<w && w<20)){alert("抑秒数は「有効 < 技あり < 20秒」にしてください。");return}
+  S.matchSetting=m*60+s;
+  if(!S.matchRunning && !S.golden) S.matchLeft=S.matchSetting;
+  S.yukoSec=y; S.wazaSec=w;
+  saveState();
+  dlg.close();
+  location.reload();
+});
+
+
+function startupSelfCheck(){
+  const requiredIds=[
+    "matchTime","osaTime","osaLabel","stateText","gsText",
+    "lw","ly","ls1","ls2","rw","ry","rs1","rs2",
+    "redOsa","whiteOsa","redOsaReset","whiteOsaReset",
+    "matchBtn","matchReset","gsBtn","settingsBtn","settingsDialog","versionTag"
+  ];
+  const missing=requiredIds.filter(id=>!$(id));
+  const stateOk=!!(S.players && S.players.left) && !!(S.players && S.players.right) &&
+                Number.isFinite(Number(S.matchLeft)) &&
+                Number.isFinite(Number(S.osaTime));
+  if(missing.length || !stateOk){
+    S.matchRunning=false;
+    S.osaRunning=false;
+    S.matchAnchor=null;
+    S.osaStarted=null;
+    console.error("Judo Timer startup self-check failed",{missing,stateOk});
+    return false;
+  }
+  return true;
+}
+
+restoreState();
+startupSelfCheck();
+$("versionTag").innerHTML='<span>Copyright f.yaz 2026</span><span style="margin-left:18px">'+APP_VERSION+'</span>';
+$("versionTag").style.cssText="font-size:10px;color:#444;text-align:right;padding-right:2px;white-space:nowrap;";
+render();
+
+tryInitialFullscreen();
+document.addEventListener("click",fullscreenFallbackFromTap,true);
+setInterval(()=>{ guardRuntimeState(); saveState(); },2000);
+window.addEventListener("pagehide",()=>{ guardRuntimeState(); saveState(); });
+window.addEventListener("beforeunload",()=>{ guardRuntimeState(); saveState(); });
+window.addEventListener("pageshow",resumeFromHidden);
+window.addEventListener("resize",()=>{ S.last=performance.now(); render(); });
+window.addEventListener("orientationchange",()=>setTimeout(()=>{
+  S.last=performance.now();
+  if(S.matchRunning) updateWakeLock();
+  render();
+},80));
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden) freezeForHidden();
+  else resumeFromHidden();
+});
+document.addEventListener("fullscreenchange",()=>{
+  S.last=performance.now();
+  if(S.matchRunning) updateWakeLock();
+  render();
+});
+
+/* b1.70 SH-M15 compatibility mode:
+   PWA/Service Workerをこの版では使わず、既存登録とキャッシュを解除する。 */
+(function(){
+  try{
+    if("serviceWorker" in navigator){
+      navigator.serviceWorker.getRegistrations().then(function(regs){
+        for(var i=0;i<regs.length;i++){ try{ regs[i].unregister(); }catch(e){} }
+      }).catch(function(){});
+    }
+    if(window.caches && caches.keys){
+      caches.keys().then(function(keys){
+        for(var i=0;i<keys.length;i++){
+          if(String(keys[i]).indexOf("judo-timer-web-")===0){
+            caches.delete(keys[i]);
+          }
+        }
+      }).catch(function(){});
+    }
+  }catch(e){}
+})();
+if(window.__setJudoDiag) window.__setJudoDiag("b1.70 JS OK");
+document.addEventListener("click",function(e){
+  var t=e && e.target;
+  if(t && t.tagName==="BUTTON" && window.__setJudoDiag){
+    window.__setJudoDiag("b1.70 CLICK: "+(t.id||t.textContent||"button"));
+  }
+},true);
+requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="72" fill="#050607"/>
+  <text x="256" y="225" text-anchor="middle" font-family="Arial,sans-serif" font-size="170" font-weight="900" fill="#f4f4f4">4:00</text>
+  <rect x="74" y="298" width="160" height="86" rx="16" fill="#80131c"/>
+  <rect x="278" y="298" width="160" height="86" rx="16" fill="#4d4d4d"/>
+  <text x="154" y="356" text-anchor="middle" font-family="Arial,sans-serif" font-size="54" font-weight="900" fill="#ffffff">技</text>
+  <text x="358" y="356" text-anchor="middle" font-family="Arial,sans-serif" font-size="54" font-weight="900" fill="#ffffff">技</text>
+</svg>
