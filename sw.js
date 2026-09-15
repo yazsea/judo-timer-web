@@ -1,8 +1,8 @@
-const CACHE="judo-timer-web-b1.72";
+const CACHE="judo-timer-web-b1.73";
 const CORE=[
   "./",
   "./index.html",
-  "./timer_web_b1.72.html",
+  "./timer_web_b1.73.html",
   "./manifest.webmanifest",
   "./icon.svg"
 ];
