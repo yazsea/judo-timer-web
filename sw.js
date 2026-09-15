@@ -1,62 +1,59 @@
-const CACHE="judo-timer-web-b1.73";
+const CACHE="judo-timer-web-b1.74";
 const CORE=[
   "./",
   "./index.html",
-  "./timer_web_b1.73.html",
+  "./timer_web_b1.74.html",
   "./manifest.webmanifest",
-  "./icon.svg"
+  "./icon.svg",
+  "./icon-192.png",
+  "./icon-512.png"
 ];
 
-self.addEventListener("install",event=>{
+self.addEventListener("install",function(event){
   event.waitUntil(
-    caches.open(CACHE)
-      .then(cache=>cache.addAll(CORE))
-      .then(()=>self.skipWaiting())
+    caches.open(CACHE).then(function(cache){
+      return cache.addAll(CORE);
+    }).then(function(){ return self.skipWaiting(); })
   );
 });
 
-self.addEventListener("activate",event=>{
+self.addEventListener("activate",function(event){
   event.waitUntil(
-    caches.keys()
-      .then(keys=>Promise.all(
-        keys.filter(key=>key.startsWith("judo-timer-web-") && key!==CACHE)
-            .map(key=>caches.delete(key))
-      ))
-      .then(()=>self.clients.claim())
+    caches.keys().then(function(keys){
+      return Promise.all(keys.filter(function(key){
+        return key.indexOf("judo-timer-web-")===0 && key!==CACHE;
+      }).map(function(key){ return caches.delete(key); }));
+    }).then(function(){ return self.clients.claim(); })
   );
 });
 
-self.addEventListener("fetch",event=>{
-  const req=event.request;
+self.addEventListener("fetch",function(event){
+  var req=event.request;
   if(req.method!=="GET") return;
-
-  const url=new URL(req.url);
+  var url=new URL(req.url);
   if(url.origin!==self.location.origin) return;
 
   if(req.mode==="navigate"){
     event.respondWith(
-      fetch(req)
-        .then(res=>{
-          const copy=res.clone();
-          caches.open(CACHE).then(cache=>cache.put("./index.html",copy)).catch(()=>{});
-          return res;
-        })
-        .catch(()=>caches.match("./index.html"))
+      fetch(req).then(function(res){
+        var copy=res.clone();
+        caches.open(CACHE).then(function(cache){ cache.put("./index.html",copy); }).catch(function(){});
+        return res;
+      }).catch(function(){ return caches.match("./index.html"); })
     );
     return;
   }
 
   event.respondWith(
-    caches.match(req).then(cached=>{
-      const refresh=fetch(req).then(res=>{
+    caches.match(req).then(function(cached){
+      if(cached) return cached;
+      return fetch(req).then(function(res){
         if(res && res.ok){
-          const copy=res.clone();
-          caches.open(CACHE).then(cache=>cache.put(req,copy)).catch(()=>{});
+          var copy=res.clone();
+          caches.open(CACHE).then(function(cache){ cache.put(req,copy); }).catch(function(){});
         }
         return res;
-      }).catch(()=>cached);
-
-      return cached || refresh;
+      });
     })
   );
 });
