@@ -1,3 +1,7 @@
+Judo Timer Web b2.03
+
+Changes: Start button switches to 待て while running; central indicator 開始/待て; reset grays indicators; settings available only after triple-tap reset until first match start.
+GitHub Pages: upload files in this directory to repository root.
 審判員用の柔道タイマーです
 タイマー設備がある試合会場を想定していません。
 設備がない場合の補助として副審もしくは補助員が使う事を考えています。
@@ -77,7 +81,7 @@ b1.76
 日本版のみの提供です
 必要なら勝手に各国版作って下さい。
 
-v2.00
+v2.03
 UIの変更 不具合解消
 
 ©yazsea
