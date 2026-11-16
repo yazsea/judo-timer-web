@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Judo Timer Web b2.04</title>
+<title>Judo Timer Web b2.06</title>
 <meta name="theme-color" content="#050607">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -1450,8 +1450,8 @@ function resetMatchToDefault(){
   S.matchRunning=false;
   S.golden=false;
   S.gsNotice=false;
-  S.matchSetting=DEFAULT_MATCH;
-  S.matchLeft=DEFAULT_MATCH;
+  // 試合時間の設定値を保持し、リセット後も同じ時間を適用する。
+  S.matchLeft=S.matchSetting;
   S.matchStartedOnce=false; S.osaManualAdjusted=false;
   S.matchAnchor=null;
   S.last=performance.now();
@@ -1470,8 +1470,7 @@ function resetMatchToDefault(){
   S.osaBest.left=0;
   S.osaBest.right=0;
 
-  S.yukoSec=DEFAULT_YUKO;
-  S.wazaSec=DEFAULT_WAZA;
+  // 有効秒・技あり秒の設定値は保持し、リセット後も同じ設定を適用する。
 
   settingsResetUnlocked=true;
   updateWakeLock();
