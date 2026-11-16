@@ -77,6 +77,8 @@ GitHub Pages: upload files in this directory to repository root.
 必要なら勝手に各国版作って下さい。
 
 
+v2.06
+不具合解消
 
 v2.04
 UIの変更 不具合解消
