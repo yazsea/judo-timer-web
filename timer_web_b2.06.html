@@ -1,0 +1,2001 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Judo Timer Web b2.06</title>
+<meta name="theme-color" content="#050607">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script>
+(function(){
+  function setDiag(t){
+    var d=document.getElementById("diagStatus");
+    if(d){ d.innerHTML=t; }
+  }
+  window.__setJudoDiag=setDiag;
+  window.onerror=function(msg,src,line,col){
+    setDiag("b2.06 JS ERROR: "+msg+" @"+line+":"+col);
+    return false;
+  };
+  window.onunhandledrejection=function(e){
+    var r=e&&e.reason;
+    setDiag("b2.06 PROMISE ERROR: "+(r&&r.message?r.message:String(r)));
+  };
+})();
+</script>
+<style>
+:root{
+  --bg:#050607; --panel:#0E1011; --panel2:#151719; --white:#F4F4F4;
+  --red:#FF2638; --yellow:#FFD21A; --green:#27E46A; --gray:#6F7477;
+  --red50:#80131C; --black30:#4D4D4D; --frame:#292C2F;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{overscroll-behavior:none}
+html,body{margin:0;width:100%;height:100%;background:var(--bg);color:var(--white);
+  font-family:"Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif;overflow:hidden;
+  overscroll-behavior:none;touch-action:manipulation}
+body{display:flex;justify-content:center}
+#app{
+  min-height:100vh;
+  min-height:100svh;
+  min-height:100dvh;width:min(100vw,540px);height:100vh;height:100svh;height:100dvh;display:grid;
+  grid-template-rows:18% 19% 1fr auto 5%;background:var(--bg);
+  padding:max(6px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right))
+          env(safe-area-inset-bottom) max(6px,env(safe-area-inset-left))}
+.timerArea,.osaArea,.scoreArea{position:relative}
+.timerArea{display:flex;align-items:center;justify-content:center}
+#matchTime{font-size:clamp(52px,19vw,104px);font-weight:900;line-height:1}
+.osaArea{display:grid;grid-template-columns:24% 46% 30%;align-items:center}
+.osaLabel{text-align:center;font-size:clamp(18px,5vw,30px);font-weight:900}
+#osaTime{text-align:center;font-size:clamp(48px,16vw,88px);font-weight:900}
+.status{display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center}
+#stateText{font-size:clamp(16px,4.5vw,28px);font-weight:900}
+#gsText{font-size:clamp(22px,6vw,36px);font-weight:900}
+.scoreArea{display:grid;grid-template-columns:1fr 34px 1fr;gap:4px;min-height:0}
+.player{background:var(--panel);position:relative;display:grid;grid-template-rows:22% 39% 39%;overflow:hidden}
+.player.red{border-top:5px solid var(--red)}
+.player.white{border-top:5px solid var(--white)}
+.shido{display:flex;align-items:center;padding:0 8px;gap:8px}
+.shidoLabel{font-weight:900;color:var(--yellow);font-size:clamp(18px,5vw,28px)}
+.lamp{width:28px;height:28px;border-radius:50%;background:#282B2E}
+.lamp.on{background:var(--yellow)}
+.scoreNum{display:flex;align-items:center;justify-content:center;font-size:clamp(62px,20vw,110px);font-weight:900}
+.player.red .scoreNum{color:var(--red)}
+.player.white .scoreNum{color:var(--white)}
+.midLabels{display:grid;grid-template-rows:1fr 1fr;align-items:center;justify-items:center;
+  font-size:clamp(20px,6vw,34px);font-weight:900}
+.controls{display:grid;grid-template-rows:repeat(4,auto);gap:2px}
+.row{display:grid;gap:2px}
+.row8{grid-template-columns:repeat(8,1fr)}
+.row5{grid-template-columns:repeat(5,1fr)}
+button{border:0;border-radius:0;color:var(--white);background:var(--panel2);font-weight:900;
+  min-height:52px;padding:4px 1px;font-size:clamp(11px,3vw,17px);touch-action:manipulation;
+  -webkit-user-select:none;user-select:none}
+button.redb{background:var(--red50)}
+button.whiteb{background:var(--black30)}
+button.green{background:var(--green)}
+button.reset{background:var(--white);color:#000}
+button:disabled{opacity:.35;pointer-events:none}
+button.holding,button:active{filter:brightness(1.35);transform:scale(.98)}
+button{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.spacer{min-height:1px}
+dialog{width:min(94vw,500px);max-height:94dvh;background:var(--panel);color:var(--white);border:0;padding:18px}
+dialog::backdrop{background:#000c}
+.setting{margin:14px 0}
+.setting label{display:block;font-weight:900;margin-bottom:6px}
+.stepper{display:grid;grid-template-columns:70px 1fr 70px;gap:8px;align-items:center}
+.stepper button{font-size:28px}
+.value{font-size:30px;font-weight:900;text-align:center;background:var(--bg);padding:12px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+@media (max-height:700px){
+  #app{grid-template-rows:16% 17% 1fr auto 3%}
+  button{min-height:46px;font-size:clamp(10px,2.7vw,15px)}
+  #matchTime{font-size:clamp(48px,17vw,88px)}
+  #osaTime{font-size:clamp(42px,14vw,74px)}
+}
+
+
+
+/* b2.06 smartphone touch stability */
+:root{--tap-min:48px}
+button{
+  min-height:var(--tap-min);
+  min-width:44px;
+}
+button:active{
+  transform:scale(.985);
+}
+@media (hover:hover) and (pointer:fine){
+  button:active{transform:none}
+}
+
+
+img,svg{user-select:none;-webkit-user-drag:none}
+button{outline:none}
+#matchReset{touch-action:none}
+
+
+/* b2.06 requested smartphone layout refinements */
+#app{
+  grid-template-rows:15% 15% 1fr auto 10%;
+  padding-top:max(3px,env(safe-area-inset-top));
+}
+.timerArea{
+  align-items:flex-start;
+  padding-top:1.5vh;
+}
+.osaArea{
+  grid-template-columns:1fr auto 1fr;
+  column-gap:0;
+  align-items:start;
+  padding-top:.5vh;
+}
+.osaLabel{
+  justify-self:center;
+  align-self:center;
+}
+#osaTime{
+  justify-self:center;
+  align-self:center;
+  min-width:2ch;
+}
+.status{
+  justify-self:center;
+  align-self:center;
+}
+.player{
+  background:transparent;
+}
+.scoreNum{
+  background:transparent;
+}
+.scoreArea{
+  margin-bottom:4px;
+}
+.lamp{
+  width:30.8px;
+  height:30.8px;
+}
+#redOsaReset,#whiteOsaReset{
+  font-size:70%;
+  white-space:nowrap;
+  word-break:keep-all;
+  overflow:hidden;
+  padding-left:0;
+  padding-right:0;
+}
+@media (max-height:700px){
+  #app{grid-template-rows:14% 14% 1fr auto 10%}
+  .timerArea{padding-top:.8vh}
+  .osaArea{padding-top:.2vh}
+}
+
+
+/* b2.06 requested smartphone layout refinements */
+#app{
+  width:min(100vw,540px);
+  max-width:100vw;
+  grid-template-rows:12.5% 12.5% 1fr auto 10%;
+  padding-top:max(1.5px,calc(env(safe-area-inset-top) * .5));
+}
+.timerArea{
+  align-items:flex-start;
+  padding-top:.75vh;
+}
+#matchTime{
+  font-size:clamp(62px,22.8vw,125px);
+  line-height:.95;
+}
+.osaArea{
+  padding-top:.25vh;
+  margin-top:-.5vh;
+}
+.scoreArea{
+  margin-top:-.5vh;
+  margin-bottom:8px;
+}
+#redOsaReset,#whiteOsaReset{
+  font-size:56%;
+  white-space:nowrap;
+  word-break:keep-all;
+}
+.controls{
+  margin-top:0;
+}
+@media (max-width:420px){
+  #app{
+    width:100vw;
+    padding-left:max(3px,env(safe-area-inset-left));
+    padding-right:max(3px,env(safe-area-inset-right));
+  }
+  button{
+    min-width:0;
+    padding-left:0;
+    padding-right:0;
+    font-size:clamp(9px,2.6vw,14px);
+  }
+  .row8,.row5{
+    min-width:0;
+  }
+  #matchTime{
+    font-size:clamp(58px,22vw,110px);
+  }
+  #osaTime{
+    font-size:clamp(42px,15vw,78px);
+  }
+}
+@media (max-width:360px){
+  #app{
+    transform-origin:top center;
+  }
+  button{
+    font-size:clamp(8px,2.45vw,12px);
+  }
+  .midLabels{
+    font-size:clamp(18px,5.4vw,30px);
+  }
+}
+@media (max-height:700px){
+  #app{grid-template-rows:12% 12% 1fr auto 10%}
+  .timerArea{padding-top:.4vh}
+  .osaArea{padding-top:0;margin-top:-.4vh}
+}
+
+
+/* b2.06 score-area vertical compaction */
+#app{
+  grid-template-rows:12.5% 12.5% minmax(0,.82fr) auto 15%;
+}
+.player{
+  grid-template-rows:20% 40% 40%;
+}
+.scoreArea{
+  align-self:stretch;
+  min-height:0;
+  padding-top:0;
+  padding-bottom:0;
+  margin-top:-1vh;
+  margin-bottom:2px;
+}
+.scoreNum{
+  line-height:.86;
+  min-height:0;
+}
+.midLabels{
+  line-height:.86;
+}
+.shido{
+  min-height:0;
+}
+@media (max-height:700px){
+  #app{grid-template-rows:12% 12% minmax(0,.82fr) auto 15%}
+  .scoreArea{margin-top:-.8vh;margin-bottom:1px}
+}
+
+
+/* b2.06 button geometry / typography / shido spacing / osa idle color */
+
+/* 1行目・2行目: 横幅に合わせた正方形を維持 */
+.controls .row8 button{
+  aspect-ratio:1 / 1;
+  min-height:0;
+  height:auto;
+}
+
+/* 全ボタン: 1行表示、改行禁止、可能な限り大きく */
+.controls button{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:clip;
+  word-break:keep-all;
+  line-height:1;
+  padding-left:1px;
+  padding-right:1px;
+}
+
+/* 1・2行目は8分割幅に合わせ、最大限読める文字サイズ */
+.controls .row8 button{
+  font-size:clamp(9px,2.75vw,16px);
+}
+
+/* 3・4行目は5分割幅を活かして大きく */
+.controls .row5 button{
+  font-size:clamp(10px,3.25vw,18px);
+}
+
+/* 抑込リセットは1行固定のまま、横幅内で最大化 */
+#redOsaReset,#whiteOsaReset{
+  font-size:clamp(7px,2.0vw,12px);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:clip;
+  word-break:keep-all;
+}
+
+/* 指導カウンターの上下余白をそれぞれ200%へ */
+.shido{
+  padding-top:16px;
+  padding-bottom:16px;
+}
+
+/* 抑込タイマー: 非動作時はグレー */
+#osaTime{
+  color:#777;
+}
+#osaLabel{
+  color:#777;
+}
+body.osa-active #osaTime,
+body.osa-active #osaLabel{
+  color:var(--yellow);
+}
+
+/* 狭いスマホでも1行維持 */
+@media (max-width:420px){
+  .controls .row8 button{font-size:clamp(8px,2.55vw,14px)}
+  .controls .row5 button{font-size:clamp(9px,3vw,16px)}
+  #redOsaReset,#whiteOsaReset{font-size:clamp(6px,1.85vw,10px)}
+}
+
+
+/* b2.06 button label and typography refinements */
+
+/* リセット以外の1・2行目ボタンは、横幅を大きく使う文字サイズへ */
+.controls .row8 button:not(#redOsaReset):not(#whiteOsaReset){
+  font-size:clamp(12px,4.0vw,22px);
+  letter-spacing:0;
+  white-space:nowrap;
+}
+
+/* リセットは従来の縮小表示を維持 */
+#redOsaReset,#whiteOsaReset{
+  font-size:clamp(6px,1.85vw,10px);
+}
+
+/* 3・4行目ボタン全体も大きく */
+.controls .row5 button{
+  font-size:clamp(12px,3.8vw,21px);
+  white-space:nowrap;
+  letter-spacing:0;
+}
+
+/* GS / 設定 / 抑込秒± はさらに120% */
+#gsBtn,#settingsBtn,#osaPlus,#osaMinus{
+  font-size:clamp(14px,4.55vw,25px);
+}
+
+/* 狭い画面では横幅に合わせて自動縮小し1行を維持 */
+@media (max-width:420px){
+  .controls .row8 button:not(#redOsaReset):not(#whiteOsaReset){
+    font-size:clamp(10px,3.75vw,19px);
+  }
+  .controls .row5 button{
+    font-size:clamp(10px,3.45vw,18px);
+  }
+  #gsBtn,#settingsBtn,#osaPlus,#osaMinus{
+    font-size:clamp(12px,4.1vw,21px);
+  }
+}
+@media (max-width:360px){
+  .controls .row8 button:not(#redOsaReset):not(#whiteOsaReset){
+    font-size:clamp(9px,3.45vw,17px);
+  }
+  .controls .row5 button{
+    font-size:clamp(9px,3.2vw,16px);
+  }
+  #gsBtn,#settingsBtn,#osaPlus,#osaMinus{
+    font-size:clamp(11px,3.8vw,19px);
+  }
+}
+
+
+/* b2.06 row 1 / row 2 button text +120% */
+.controls .row8 button:not(#redOsaReset):not(#whiteOsaReset){
+  font-size:clamp(14.4px,4.8vw,26.4px);
+}
+#redOsaReset,#whiteOsaReset{
+  font-size:clamp(7.2px,2.22vw,12px);
+}
+@media (max-width:420px){
+  .controls .row8 button:not(#redOsaReset):not(#whiteOsaReset){
+    font-size:clamp(12px,4.5vw,22.8px);
+  }
+  #redOsaReset,#whiteOsaReset{
+    font-size:clamp(7.2px,2.22vw,12px);
+  }
+}
+@media (max-width:360px){
+  .controls .row8 button:not(#redOsaReset):not(#whiteOsaReset){
+    font-size:clamp(10.8px,4.14vw,20.4px);
+  }
+}
+
+
+/* b2.06 smartphone start/stop touch reliability */
+#matchBtn{
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+
+
+/* b2.06 mobile click compatibility */
+button{
+  touch-action:manipulation;
+  pointer-events:auto;
+}
+
+
+/* b2.06 SH-M15 native click compatibility */
+button{touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,255,255,.12)}
+
+
+body{padding-bottom:20px}
+
+/* b2.06 osa timer side color / top spacing */
+#osaTime,
+#osaLabel{
+  color:#777;
+}
+body.osa-active.osa-left #osaTime,
+body.osa-active.osa-left #osaLabel{
+  color:var(--red);
+}
+body.osa-active.osa-right #osaTime,
+body.osa-active.osa-right #osaLabel{
+  color:var(--white);
+}
+
+/* 試合タイマー上部余白を、試合タイマー～抑込タイマー間の余白感に合わせる */
+.timerArea{
+  padding-top:.5vh;
+}
+
+
+/* b2.06 試合タイマー上部余白を b1.41 の300%へ */
+.timerArea{
+  padding-top:1.5vh;
+}
+
+
+/* b2.06 試合タイマー上部余白を b1.42 の300%へ */
+.timerArea{
+  padding-top:4.5vh;
+}
+
+
+/* b2.06 余白のみb1.41へ戻す */
+.timerArea{
+  padding-top:.5vh;
+}
+
+
+/* b2.06 上部余白をb1.44比500%へ。増加分は全体を下へ送る */
+.timerArea{
+  padding-top:2.5vh;
+}
+
+
+/* b2.06 score label vertical centering + match timer 120% */
+.scoreArea{
+  align-items:center;
+}
+.player{
+  align-self:stretch;
+}
+.midLabels{
+  align-self:stretch;
+  display:grid;
+  grid-template-rows:1fr 1fr;
+  align-items:center;
+  justify-items:center;
+}
+.midLabels > *{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:100%;
+  line-height:1;
+}
+
+/* 試合タイマー文字をb1.45比120%。上部余白は2.5vhを維持 */
+#matchTime{
+  font-size:clamp(74.4px,27.36vw,150px);
+  line-height:.9;
+}
+.timerArea{
+  padding-top:2.5vh;
+}
+
+
+/* b2.06 score labels downward + top spacing 200% + GS text 120% */
+.midLabels{
+  transform:translateY(8%);
+}
+
+/* 試合タイマー上部余白をb1.46比200%。増加分は全体を下へ送る */
+.timerArea{
+  padding-top:5vh;
+}
+
+/* GS文字列を120%拡大 */
+#gsBtn{
+  font-size:clamp(16.8px,5.46vw,30px);
+}
+@media (max-width:420px){
+  #gsBtn{
+    font-size:clamp(14.4px,4.92vw,25.2px);
+  }
+}
+@media (max-width:360px){
+  #gsBtn{
+    font-size:clamp(13.2px,4.56vw,22.8px);
+  }
+}
+
+
+/* b2.06 repeated layout adjustments */
+.midLabels{
+  transform:translateY(16%);
+}
+
+/* b1.47の5vhから200% = 10vh。増加分は全体を下へ送る */
+.timerArea{
+  padding-top:10vh;
+}
+
+/* b1.47のGS文字からさらに120% */
+#gsBtn{
+  font-size:clamp(20.16px,6.552vw,36px);
+}
+@media (max-width:420px){
+  #gsBtn{
+    font-size:clamp(17.28px,5.904vw,30.24px);
+  }
+}
+@media (max-width:360px){
+  #gsBtn{
+    font-size:clamp(15.84px,5.472vw,27.36px);
+  }
+}
+
+
+#secPlus,#secMinus{
+  touch-action:none;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
+
+/* b2.06: b1.48表示を維持し、試合タイマー上部余白のみ150% */
+.timerArea{
+  padding-top:15vh;
+}
+
+
+/* b2.06: 試合タイマー～抑込タイマー間のスペースをb1.44基準へ */
+.osaArea{
+  padding-top:0;
+  margin-top:-.4vh;
+}
+
+
+/* b2.06: 試合タイマー上部余白をなくす */
+.timerArea{
+  padding-top:0;
+}
+
+
+/* b2.06: 画面全体を10vh下へ移動 */
+#app{
+  transform:translateY(10vh);
+}
+
+
+/* b2.06: b1.52から画面全体を5vh上へ移動（基準位置からは5vh下） */
+#app{
+  transform:translateY(5vh);
+}
+
+
+/* b2.06: b1.53から画面全体を2vh上へ */
+#app{
+  transform:translateY(3vh);
+}
+
+
+/* b2.06 設定画面 秒ボタン 長押し連続動作 */
+#settingsDialog [data-step]{
+  touch-action:manipulation;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
+
+
+/* b2.06: 抑込秒±はリセット直後も操作可能（試合計時中は無効） */
+#osaPlus:disabled,#osaMinus:disabled{
+  opacity:.45;
+}
+
+
+/* b2.06: 設定画面の保存/キャンセル文字を同じ大きさ（150%） */
+#saveSettings,
+#cancelSettings{
+  font-size:150%;
+}
+
+/* b2.06: 「有」を少し上へ */
+.midLabels > div:nth-child(2){
+  transform:translateY(-8%);
+}
+
+
+/* b2.06: iPhone / Android 共通の秒±操作 */
+#secPlus,#secMinus,
+#settingsDialog [data-step="s,1"],
+#settingsDialog [data-step="s,-1"]{
+  touch-action:none;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;
+}
+
+
+/* b2.06: 表示サイズ・カウンター位置調整 */
+#matchTime{
+  font-size:clamp(66.96px,24.624vw,135px);
+}
+.scoreNum{
+  transform:scale(.9);
+}
+.midLabels > div:nth-child(2){
+  transform:translateY(-14%);
+}
+
+
+/* b2.06: b1.66の現状サイズからさらに90%へ縮小 */
+#matchTime{
+  font-size:clamp(60.264px,22.1616vw,121.5px);
+}
+.scoreNum{
+  transform:scale(.81);
+}
+.shido .lamp{
+  transform:scale(.9);
+}
+
+
+/* b2.06: 赤線・白線の上下余白をもう少し拡大 */
+.player{
+  margin-top:10px !important;
+  margin-bottom:10px !important;
+  padding-top:8px !important;
+  padding-bottom:8px !important;
+}
+
+
+/* b2.06 unified mobile layer: iPhone / Android */
+html,body{
+  width:100%;
+  min-height:100%;
+  overscroll-behavior:none;
+}
+body{
+  min-height:100vh;
+  min-height:100svh;
+  min-height:100dvh;
+  padding-left:env(safe-area-inset-left,0px);
+  padding-right:env(safe-area-inset-right,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+#app{
+  width:min(100vw,540px);
+  min-height:100vh;
+  min-height:100svh;
+  min-height:100dvh;
+  height:100dvh;
+  padding-left:max(6px,env(safe-area-inset-left,0px));
+  padding-right:max(6px,env(safe-area-inset-right,0px));
+  padding-bottom:max(6px,env(safe-area-inset-bottom,0px));
+}
+
+/* iPhone notch / Dynamic Island。通常ブラウザでは既存位置を維持し、
+   standalone時だけ安全領域を確実に確保する */
+@media (display-mode:standalone){
+  #app{
+    padding-top:max(6px,env(safe-area-inset-top,0px));
+    padding-bottom:max(8px,env(safe-area-inset-bottom,0px));
+  }
+}
+
+/* iOS Safari / Android Chrome 共通のタップ安定化 */
+button,
+input,
+select,
+textarea{
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+button{
+  pointer-events:auto;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
+input,select,textarea{
+  font-size:max(16px,1em);
+}
+
+/* 長押し選択・ダブルタップ拡大を抑制。既存のトリプルタップリセット処理は維持 */
+.no-select,
+#app{
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
+
+/* 横幅の異なるiPhone/Androidでも画面外へ出さない */
+@media (max-width:430px){
+  #app{max-width:100vw;}
+}
+
+
+/* b2.06: portrait reference UI; original b1.76 game logic preserved */
+html,body{background:#050607;margin:0;min-height:100%;overflow-x:hidden}
+body{padding:0!important}
+#app.visual-layout{display:flex!important;flex-direction:column!important;width:min(100%,520px)!important;max-width:520px;height:100dvh;min-height:640px;margin:0 auto;padding:env(safe-area-inset-top) 5px env(safe-area-inset-bottom)!important;gap:5px;transform:none!important;box-sizing:border-box}
+.visual-layout .scoreArea{order:0;display:grid!important;grid-template-columns:1fr 1fr;gap:3px;flex:0 0 23%;min-height:0;margin:0!important;padding:0!important;align-self:stretch}
+.visual-layout .player{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;min-width:0;min-height:0;margin:0!important;padding:4px 5px!important;border:0;border-radius:0}
+.visual-layout .player.red{background:#df0606;color:white}
+.visual-layout .player.white{background:#f4f4f4;color:#080808}
+.playerName{text-align:center;font-size:clamp(27px,7vw,50px);font-weight:1000;line-height:1.1}
+.scoreColumns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;flex:1;align-items:center}
+.scoreColumns>div{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;position:relative}
+.scoreColumns label{font-size:clamp(16px,4vw,27px);font-weight:900}
+.visual-layout .scoreNum{display:flex!important;align-items:center;justify-content:center;background:#050607;color:#fff!important;border-radius:5px;width:100%;height:clamp(35px,10vw,63px);font-size:clamp(30px,8vw,58px);font-weight:1000;line-height:1}
+.visual-layout .red #lw,.visual-layout .red #ly{color:#ff182a!important}
+.visual-layout .shido{display:flex!important;position:absolute;bottom:-15px;right:0;gap:3px;padding:0!important;min-height:0!important;align-items:center}
+.visual-layout .shidoLabel{display:none}
+.visual-layout .lamp{width:12px;height:12px;border:1px solid #111;border-radius:50%;background:#777}
+.visual-layout .timerStrip{order:1;display:grid;grid-template-columns:minmax(0,1fr) 15% minmax(0,1fr);align-items:center;flex:0 0 16%;gap:2px}
+.visual-layout .timerArea,.visual-layout .osaArea{display:flex!important;flex-direction:column;justify-content:center;align-items:center;margin:0!important;padding:0!important;min-width:0;min-height:0}
+.visual-layout .timerTitle,.visual-layout .osaLabel{font-size:clamp(11px,3.3vw,19px);font-weight:900;color:#fff!important;white-space:nowrap}
+.visual-layout #matchTime{font-size:clamp(39px,12vw,72px)!important;color:#ffe800;line-height:1.1;white-space:nowrap}
+.visual-layout #osaTime{font-size:clamp(39px,12vw,72px)!important;color:#f8f8f8;line-height:1.1;white-space:nowrap}
+.visual-layout .centerStatus{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+.visual-layout #stateText,.visual-layout #gsText{display:flex;align-items:center;justify-content:center;transform:scale(.9);transform-origin:center;font-size:clamp(17px,4.8vw,28px);font-weight:900;border-radius:7px;width:100%;height:clamp(36px,9vw,52px)}
+.visual-layout #stateText{background:#ffe800;color:black}
+.visual-layout #gsText{border:1px solid #666;color:white;background:#161719}
+.visual-layout .controls{order:2;display:flex!important;flex-direction:column;gap:5px;flex:0 0 auto;margin:0!important;padding:0!important;min-height:0}
+.visual-layout .row{display:grid!important;gap:4px;width:100%;min-width:0}
+.visual-layout .row8{grid-template-columns:repeat(8,minmax(0,1fr))}
+.visual-layout .row5{grid-template-columns:1fr 1fr 1.8fr 1fr 1fr}
+.visual-layout .controls button{display:flex!important;align-items:center;justify-content:center;text-align:center;white-space:normal!important;overflow:visible!important;word-break:keep-all;font-size:clamp(11px,3.1vw,18px)!important;font-weight:900;line-height:1.12;min-width:0;min-height:0;height:clamp(58px,13vw,80px)!important;border-radius:7px;aspect-ratio:auto!important;padding:2px!important}
+.visual-layout .row8 button{height:clamp(61px,14vw,83px)!important;font-size:clamp(10px,2.9vw,16px)!important}
+.visual-layout #redOsaReset,.visual-layout #whiteOsaReset{font-size:clamp(9px,2.4vw,14px)!important}
+.visual-layout .redb{background:#f22c2d!important;color:#fff!important}
+.visual-layout .whiteb{background:#f4f4f4!important;color:#111!important}
+.visual-layout #minPlus,.visual-layout #secPlus,.visual-layout #minMinus,.visual-layout #secMinus,.visual-layout #osaPlus,.visual-layout #osaMinus{background:#0757ef!important;color:#fff!important}
+.visual-layout #matchBtn{background:#079f2e!important;color:white!important;font-size:clamp(17px,5vw,29px)!important}
+.visual-layout #gsBtn{background:#ffe600!important;color:#111!important;font-size:clamp(20px,5vw,29px)!important}
+.visual-layout #matchReset{background:#ed2429!important;color:#fff!important;font-size:clamp(13px,3.7vw,22px)!important}
+.visual-layout #settingsBtn{background:#52565b!important;color:#fff!important;font-size:clamp(18px,4.3vw,26px)!important}
+.visual-layout .bottom-settings{order:3;flex:1 1 auto;min-height:110px;max-height:165px;background:#1a1b1d;border:1px solid #555;border-radius:15px;padding:8px 10px;box-sizing:border-box;opacity:1;transition:opacity .15s}
+.visual-layout .bottom-settings.locked{opacity:.30}
+.visual-layout .bottom-settings.locked button{pointer-events:none}
+.settingsHeading{font-size:clamp(16px,4vw,22px);font-weight:900;border-bottom:1px solid #444;padding-bottom:4px}
+#settingsMode{font-size:11px;font-weight:400;float:right}
+.bottom-settings-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding-top:6px}
+.bottom-settings-grid>div{min-width:0;text-align:center}
+.bottom-settings-grid label{display:block;color:white;font-size:clamp(10px,2.7vw,14px);font-weight:800;min-height:30px}
+.bottom-step{display:flex;align-items:stretch;justify-content:center;gap:3px;height:clamp(35px,9vw,52px)}
+.bottom-step output{background:#070707;color:white;border:1px solid #888;border-radius:5px;font-size:clamp(19px,5vw,31px);font-weight:900;min-width:0;flex:1;display:flex;align-items:center;justify-content:center}
+.bottom-step .arrows{display:flex;flex-direction:column;gap:1px;width:24px}
+.bottom-step button{font-size:12px!important;padding:0!important;min-height:0;flex:1;border:1px solid #777;background:#303238;color:white;border-radius:3px}
+.visual-layout .spacer{order:4;flex:0 0 8px;min-height:0!important}
+@media(max-height:730px){#app.visual-layout{gap:3px}.visual-layout .scoreArea{flex-basis:20%}.visual-layout .timerStrip{flex-basis:14%}.visual-layout .controls button{height:52px!important}.visual-layout .row8 button{height:54px!important}.visual-layout .bottom-settings{min-height:100px}}
+
+#app.visual-layout .bottom-settings{flex:0 0 auto!important;height:auto!important;min-height:0!important;max-height:none!important;align-self:stretch;margin-top:0;padding:5px 8px 8px!important;overflow:hidden;box-sizing:border-box}
+#app.visual-layout .bottom-settings-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:clamp(3px,1vw,8px)!important;padding-top:0!important;align-items:start}
+#app.visual-layout .bottom-settings-grid>div{min-width:0!important;width:auto!important;overflow:hidden}
+#app.visual-layout .bottom-settings-grid label{font-size:clamp(9px,2.45vw,13px)!important;line-height:1.15;min-height:28px;white-space:normal;overflow-wrap:anywhere}
+#app.visual-layout .bottom-step{width:100%;height:clamp(35px,9vw,46px);min-width:0;gap:2px}
+#app.visual-layout .bottom-step output{min-width:0!important;font-size:clamp(16px,4.3vw,26px)!important}
+#app.visual-layout .bottom-step .arrows{width:clamp(18px,5vw,24px);flex:0 0 clamp(18px,5vw,24px)}
+#app.visual-layout #settingsMode{display:none!important}
+#app.visual-layout .spacer{flex:1 1 auto!important;min-height:0!important}
+@media(max-height:730px){#app.visual-layout .bottom-settings{min-height:0!important}}
+
+/* b2.06: remove upper 赤/白 headings; retain original 100% score-button height */
+.visual-layout .scoreArea{flex:0 0 18%!important}
+.visual-layout .player{justify-content:center!important}
+.visual-layout .scoreColumns{align-items:center}
+.visual-layout .row8 button{height:clamp(61px,14vw,83px)!important}
+@media(max-height:730px){.visual-layout .row8 button{height:54px!important}}
+
+/* b2.06 FINAL DESIGN: rounded gothic throughout, single sound button */
+html,body,button,label,output,span,div,section{
+ font-family:"Hiragino Maru Gothic ProN","ヒラギノ丸ゴ ProN W4",
+ "Zen Maru Gothic","M PLUS Rounded 1c","HG丸ｺﾞｼｯｸM-PRO",
+ "Meiryo","Noto Sans JP",sans-serif!important;
+}
+#app.visual-layout .scoreArea{flex:0 0 18%!important}
+#app.visual-layout .row8 button{height:clamp(61px,14vw,83px)!important}
+ background:#303135!important;
+ color:#f4f4f4!important;
+ border:1px solid #666!important;
+ border-radius:7px!important;
+ font-size:clamp(17px,4vw,24px)!important;
+ font-weight:900!important;
+}
+#app.visual-layout .bottom-settings{margin-top:0!important}
+#app.visual-layout .spacer{flex:1 1 auto!important}
+@media(max-height:730px){#app.visual-layout .row8 button{height:54px!important}}
+
+/* b2.06: latest approved UI adjustments */
+.visual-layout .shido{display:none!important}
+.visual-layout #matchTime,.visual-layout #osaTime{
+  transform:scale(0.9,1.1)!important;
+  transform-origin:center center!important;
+  letter-spacing:inherit!important;
+}
+.visual-layout #stateText,.visual-layout #gsText{
+  background:#141414!important;
+  border:2px solid #686868!important;
+  color:#858585;
+  box-sizing:border-box!important;
+}
+.visual-layout #settingsBtn:disabled{opacity:.50!important;filter:grayscale(1)}
+
+/* b2.06 SH-M15: 360 CSS px portrait optimized, based on device screenshot */
+@media (max-width:430px) and (orientation:portrait){
+  #app.visual-layout{
+    width:100%!important;max-width:none!important;
+    height:100dvh!important;min-height:0!important;
+    padding:0 5px env(safe-area-inset-bottom)!important;
+    gap:4px!important;overflow-y:auto;overflow-x:hidden;
+    scrollbar-width:none;
+  }
+  #app.visual-layout::-webkit-scrollbar{display:none}
+  #app.visual-layout .scoreArea{
+    flex:0 0 auto!important;height:clamp(104px,26vh,142px)!important;
+    gap:3px!important;
+  }
+  #app.visual-layout .player{padding:4px 5px!important;overflow:visible!important}
+  #app.visual-layout .scoreColumns{gap:3px!important}
+  #app.visual-layout .scoreColumns label{font-size:clamp(15px,4.8vw,22px)!important}
+  #app.visual-layout .scoreNum{height:clamp(35px,10vw,48px)!important;font-size:clamp(29px,8vw,44px)!important}
+  #app.visual-layout .timerStrip{flex:0 0 auto!important;height:clamp(86px,23vw,118px)!important;grid-template-columns:minmax(0,1fr) 16% minmax(0,1fr)!important}
+  #app.visual-layout #matchTime,#app.visual-layout #osaTime{
+    font-size:clamp(42px,12.6vw,63px)!important;letter-spacing:0!important;
+    transform:scale(.9,1.1)!important;
+  }
+  #app.visual-layout .timerTitle,#app.visual-layout .osaLabel{font-size:clamp(11px,3.3vw,15px)!important}
+  #app.visual-layout #stateText,#app.visual-layout #gsText{
+    height:clamp(32px,9vw,41px)!important;
+    font-size:clamp(16px,4.7vw,22px)!important;
+    padding:0!important;
+  }
+  #app.visual-layout .controls{gap:4px!important}
+  #app.visual-layout .row{gap:3px!important}
+  #app.visual-layout .row8 button{
+    height:clamp(50px,13.4vw,63px)!important;
+    font-size:clamp(11px,3.3vw,15px)!important;
+    line-height:1.05!important;
+    border-radius:7px!important;
+  }
+  #app.visual-layout .row8 #redOsa,#app.visual-layout .row8 #whiteOsa,
+  #app.visual-layout .row8 #redOsaReset,#app.visual-layout .row8 #whiteOsaReset{
+    font-size:clamp(9px,2.75vw,12px)!important;
+  }
+  #app.visual-layout .row5 button{
+    height:clamp(55px,15vw,72px)!important;
+    font-size:clamp(12px,3.6vw,18px)!important;
+  }
+  #app.visual-layout .row5 #matchBtn{font-size:clamp(19px,5.2vw,26px)!important}
+  #app.visual-layout .row5 #gsBtn{font-size:clamp(21px,5.5vw,28px)!important}
+  #app.visual-layout .bottom-settings{
+    flex:0 0 auto!important;
+    min-height:0!important;max-height:none!important;
+    height:clamp(92px,25vw,118px)!important;
+    padding:7px 8px!important;
+    border-radius:12px!important;
+  }
+  #app.visual-layout .bottom-settings-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:5px!important;padding-top:3px!important;
+  }
+  #app.visual-layout .bottom-settings-grid label{font-size:clamp(9px,2.65vw,12px)!important;min-height:26px!important}
+  #app.visual-layout .bottom-step{height:clamp(34px,9vw,43px)!important}
+  #app.visual-layout .bottom-step .arrows{width:20px!important}
+  #app.visual-layout .bottom-step output{font-size:clamp(18px,5vw,24px)!important}
+  #app.visual-layout .spacer{flex:0 0 12px!important}
+}
+
+/* b2.06 SH-M15 adjustments */
+#app.visual-layout .scoreArea{height:clamp(96px,24vh,130px)!important}
+#app.visual-layout .player{padding-top:1px!important;padding-bottom:1px!important}
+#app.visual-layout .scoreColumns{align-items:center!important}
+#app.visual-layout .scoreColumns label{line-height:1.05!important;margin:0!important}
+#app.visual-layout #matchTime{font-size:clamp(46px,13.86vw,69px)!important}
+#app.visual-layout #stateText.indicator-active{
+  border-color:#00d448!important;background:#003b17!important;color:#fff!important
+}
+#app.visual-layout #gsText.indicator-active{
+  border-color:#ffe600!important;background:#302c00!important;color:#ffe600!important
+}
+#app.visual-layout #gsBtn.gs-on{background:#ffe600!important;color:#111!important}
+#app.visual-layout #gsBtn.gs-off{background:#55585c!important;color:#fff!important}
+#app.visual-layout #gsBtn{opacity:1!important;filter:none!important}
+
+/* b2.06: match timer 120% of b1.84; osaekomi matches the same glyph size. */
+#app.visual-layout #matchTime,
+#app.visual-layout #osaTime{
+  font-size:clamp(55.2px,16.632vw,82.8px)!important;
+  transform:scale(.9,1.1)!important;
+  transform-origin:center center!important;
+  letter-spacing:0!important;
+}
+@media(max-width:430px) and (orientation:portrait){
+ #app.visual-layout .timerStrip{grid-template-columns:minmax(0,1fr) 16% minmax(0,1fr)!important;}
+ #app.visual-layout #matchTime,#app.visual-layout #osaTime{font-size:clamp(55.2px,16.632vw,82.8px)!important;}
+}
+
+/* b2.06: reduce only panel background height; restore b1.86 counter height. */
+#app.visual-layout .scoreArea{height:clamp(90px,22vh,120px)!important;flex:0 0 auto!important}
+#app.visual-layout .player{padding-top:0!important;padding-bottom:0!important}
+@media(min-width:431px){#app.visual-layout .scoreArea{height:clamp(100px,18vh,135px)!important}}
+
+/* b2.06: further reduce only red/white panel background height; counter dimensions unchanged. */
+#app.visual-layout .scoreArea{height:clamp(76px,18vh,104px)!important;flex:0 0 auto!important}
+#app.visual-layout .scoreArea .player{padding-top:0!important;padding-bottom:0!important;overflow:visible!important}
+#app.visual-layout .scoreArea .scoreColumns{height:100%;min-height:0!important}
+/* Do not change scoreNum height, width, font size or scale. */
+@media(min-width:431px){#app.visual-layout .scoreArea{height:clamp(86px,15vh,118px)!important}}
+
+/* b2.06: enlarge ONLY the six score digits by 110%; preserve counter boxes and panel sizes. */
+#app.visual-layout .scoreNum{font-size:clamp(33px,8.8vw,63.8px)!important}
+@media(max-width:430px) and (orientation:portrait){
+ #app.visual-layout .scoreNum{font-size:clamp(31.9px,8.8vw,48.4px)!important}
+}
+/* b2.06: 110% height for black score boxes only; keep digits and colored panels unchanged. */
+#app.visual-layout .scoreNum{height:clamp(38.5px,11vw,69.3px)!important}
+@media(max-width:430px) and (orientation:portrait){
+  #app.visual-layout .scoreNum{height:clamp(38.5px,11vw,52.8px)!important}
+}
+/* Both shido digits are yellow. */
+#app.visual-layout #redShidoNum,
+#app.visual-layout #whiteShidoNum{color:#ffe600!important}
+
+/* b2.06: keep content below front-facing camera/notch and dynamic island. */
+#app.visual-layout{
+  padding-top:max(30px, calc(env(safe-area-inset-top, 0px) + 14px))!important;
+  height:100dvh!important;
+  min-height:0!important;
+}
+@media(max-width:430px) and (orientation:portrait){
+  #app.visual-layout{
+    padding-top:max(30px, calc(env(safe-area-inset-top, 0px) + 14px))!important;
+  }
+}
+</style>
+
+<!-- b2.06 unified mobile PWA: iPhone + Android -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Judo Timer">
+<meta name="application-name" content="Judo Timer">
+
+</head>
+<body>
+<div id="app" class="visual-layout">
+<section class="scoreArea">
+ <div class="player red"><div class="scoreColumns">
+  <div><label>技</label><span class="scoreNum" id="lw">0</span></div>
+  <div><label>有</label><span class="scoreNum" id="ly">0</span></div>
+  <div><label>指</label><span class="scoreNum" id="redShidoNum">0</span><div class="shido"><span class="shidoLabel">指</span><span class="lamp" id="ls1"></span><span class="lamp" id="ls2"></span></div></div>
+ </div></div>
+ <div class="player white"><div class="scoreColumns">
+  <div><label>技</label><span class="scoreNum" id="rw">0</span></div>
+  <div><label>有</label><span class="scoreNum" id="ry">0</span></div>
+  <div><label>指</label><span class="scoreNum" id="whiteShidoNum">0</span><div class="shido"><span class="shidoLabel">指</span><span class="lamp" id="rs1"></span><span class="lamp" id="rs2"></span></div></div>
+ </div></div>
+</section>
+<section class="timerStrip">
+ <section class="timerArea"><div class="timerTitle">試合時間</div><div id="matchTime">4:00</div></section>
+ <div class="centerStatus"><div id="stateText">待て</div><div id="gsText">GS</div></div>
+ <section class="osaArea"><div id="osaLabel" class="osaLabel">抑込時間</div><div id="osaTime">00</div><div class="status" aria-hidden="true"></div></section>
+</section>
+<section class="controls" id="controlPanel">
+ <div class="row row8">
+  <button class="redb" data-score="left,waza,1">技+</button><button class="redb" data-score="left,yuko,1">有+</button><button class="redb" data-score="left,shido,1">指+</button><button class="redb" id="redOsa">抑込<br>スタート</button>
+  <button class="whiteb" data-score="right,waza,1">技+</button><button class="whiteb" data-score="right,yuko,1">有+</button><button class="whiteb" data-score="right,shido,1">指+</button><button class="whiteb" id="whiteOsa">抑込<br>スタート</button>
+ </div>
+ <div class="row row8">
+  <button class="redb" data-score="left,waza,-1">技-</button><button class="redb" data-score="left,yuko,-1">有-</button><button class="redb" data-score="left,shido,-1">指-</button><button class="redb" id="redOsaReset">抑込<br>リセット</button>
+  <button class="whiteb" data-score="right,waza,-1">技-</button><button class="whiteb" data-score="right,yuko,-1">有-</button><button class="whiteb" data-score="right,shido,-1">指-</button><button class="whiteb" id="whiteOsaReset">抑込<br>リセット</button>
+ </div>
+ <div class="row row5">
+  <button id="minPlus">タイマー<br>分+</button><button id="secPlus">タイマー<br>秒+</button><button class="green" id="matchBtn">はじめ</button><button id="gsBtn">GS</button><button id="osaPlus">抑込<br>秒+</button>
+ </div>
+ <div class="row row5">
+  <button id="minMinus">タイマー<br>分-</button><button id="secMinus">タイマー<br>秒-</button><button class="reset" id="matchReset">タイマー<br>リセット</button><button id="settingsBtn">設定</button><button id="osaMinus">抑込<br>秒-</button>
+ </div>
+</section>
+<section id="bottomSettings" class="bottom-settings locked" aria-label="設定パネル">
+ <span id="settingsMode" hidden aria-live="polite">変更不可</span>
+ <div class="bottom-settings-grid">
+  <div><label>試合時間<br>（分）</label><div class="bottom-step"><output id="bm">4</output><div class="arrows"><button data-bottom="m,1" aria-label="試合時間を増やす">▲</button><button data-bottom="m,-1" aria-label="試合時間を減らす">▼</button></div></div></div>
+  <div><label>抑込 有効<br>（秒）</label><div class="bottom-step"><output id="by">5</output><div class="arrows"><button data-bottom="y,1" aria-label="有効秒数を増やす">▲</button><button data-bottom="y,-1" aria-label="有効秒数を減らす">▼</button></div></div></div>
+  <div><label>抑込 技あり<br>（秒）</label><div class="bottom-step"><output id="bw">10</output><div class="arrows"><button data-bottom="w,1" aria-label="技あり秒数を増やす">▲</button><button data-bottom="w,-1" aria-label="技あり秒数を減らす">▼</button></div></div></div>
+ </div>
+</section>
+<div class="spacer" id="versionTag" aria-label="version"></div>
+</div>
+<dialog id="settingsDialog">
+  <div class="setting"><label>試合タイマー 分</label>
+    <div class="stepper"><button data-step="m,-1">−</button><div class="value" id="setM">4</div><button data-step="m,1">＋</button></div>
+  </div>
+  <div class="setting"><label>試合タイマー 秒</label>
+    <div class="stepper"><button data-step="s,-1">−</button><div class="value" id="setS">0</div><button data-step="s,1">＋</button></div>
+  </div>
+  <div class="setting"><label>抑込 有効 秒数</label>
+    <div class="stepper"><button data-step="y,-1">−</button><div class="value" id="setY">5</div><button data-step="y,1">＋</button></div>
+  </div>
+  <div class="setting"><label>抑込 技あり 秒数</label>
+    <div class="stepper"><button data-step="w,-1">−</button><div class="value" id="setW">10</div><button data-step="w,1">＋</button></div>
+  </div>
+  <div class="actions"><button class="green" id="saveSettings">保存</button><button id="cancelSettings">キャンセル</button></div>
+</dialog>
+
+<script>
+const APP_VERSION="b2.06";
+const STATE_SCHEMA=1;
+const STORAGE_KEY="judo-timer-web-state-b1";
+const STORAGE_BACKUP_KEY="judo-timer-web-state-b1-backup";
+const DEFAULT_MATCH=240, DEFAULT_YUKO=5, DEFAULT_WAZA=10;
+const S={
+  players:{left:{yuko:0,waza:0,shido:0},right:{yuko:0,waza:0,shido:0}},
+  matchSetting:DEFAULT_MATCH, matchLeft:DEFAULT_MATCH, matchRunning:false,
+  matchStartedOnce:false, osaManualAdjusted:false,
+  golden:false, gsNotice:false, last:performance.now(), matchAnchor:null,
+  osaRunning:false, osaSide:"left", osaTime:0, osaStarted:null,
+  osaBest:{left:0,right:0}, yukoSec:DEFAULT_YUKO, wazaSec:DEFAULT_WAZA,
+};
+const $=id=>document.getElementById(id);
+
+
+
+let saveTimer=null;
+let lastSavedState="";
+function normalizedSnapshot(){
+  const snapshot=JSON.parse(JSON.stringify(S));
+  snapshot.matchRunning=false;
+  // 再読み込み時は計時を止めるが、押さえ込み選択状態は保持する。
+  snapshot.osaRunning=!!S.osaRunning;
+  snapshot.osaStarted=null;
+  delete snapshot.last;
+  delete snapshot.matchAnchor;
+  return snapshot;
+}
+function saveState(){
+  if(saveTimer){
+    clearTimeout(saveTimer);
+    saveTimer=null;
+  }
+  try{
+    const snapshot=normalizedSnapshot();
+    const stateJson=JSON.stringify(snapshot);
+    // 状態が変わっていない定期保存ではlocalStorageを書き換えない。
+    if(stateJson===lastSavedState) return;
+    const next=JSON.stringify({
+      schema:STATE_SCHEMA,
+      appVersion:APP_VERSION,
+      savedAt:Date.now(),
+      state:snapshot
+    });
+    const current=localStorage.getItem(STORAGE_KEY);
+    // 主保存が正常なJSONなら、上書き前に直前状態をバックアップする。
+    if(current){
+      try{
+        const parsed=JSON.parse(current);
+        const source=(parsed && parsed.state) ? parsed.state : parsed;
+        if(sanitizeState(source)) localStorage.setItem(STORAGE_BACKUP_KEY,current);
+      }catch(_e){}
+    }
+    localStorage.setItem(STORAGE_KEY,next);
+    lastSavedState=stateJson;
+  }catch(_e){}
+}
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>{
+    saveTimer=null;
+    saveState();
+  },120);
+}
+function sanitizeState(v){
+  if(!v || typeof v!=="object") return null;
+  const cleanPlayer=p=>({
+    yuko:clamp(Math.trunc(Number(p && p.yuko)||0),0,9),
+    waza:clamp(Math.trunc(Number(p && p.waza)||0),0,1),
+    shido:clamp(Math.trunc(Number(p && p.shido)||0),0,2)
+  });
+  const side=v.osaSide==="right"?"right":"left";
+  const matchSetting=clamp(Number(v.matchSetting)||DEFAULT_MATCH,0,599);
+  const yukoSec=clamp(Number(v.yukoSec)||DEFAULT_YUKO,1,18);
+  let wazaSec=clamp(Number(v.wazaSec)||DEFAULT_WAZA,2,19);
+  if(wazaSec<=yukoSec) wazaSec=Math.min(19,yukoSec+1);
+
+  return {
+    players:{left:cleanPlayer(v.players && v.players.left),right:cleanPlayer(v.players && v.players.right)},
+    matchSetting, matchLeft:clamp(Number(v.matchLeft)||0,0,599), matchRunning:false,
+    golden:!!v.golden, gsNotice:!!v.gsNotice, last:performance.now(),
+    osaRunning:!!v.osaRunning, osaSide:side, osaTime:clamp(Number(v.osaTime)||0,0,20), osaStarted:null,
+    osaBest:{
+      left:clamp(Number(v.osaBest && v.osaBest.left)||0,0,20),
+      right:clamp(Number(v.osaBest && v.osaBest.right)||0,0,20)
+    },
+    yukoSec,wazaSec
+  };
+}
+function restoreState(){
+  const tryRestore=raw=>{
+    if(!raw) return false;
+    try{
+      const parsed=JSON.parse(raw);
+      // b1.03以前の保存形式も読み込めるよう後方互換を維持する。
+      const source=(parsed && parsed.state) ? parsed.state : parsed;
+      const clean=sanitizeState(source);
+      if(!clean) return false;
+      Object.assign(S,clean);
+      S.matchAnchor=null;
+      guardRuntimeState();
+      lastSavedState=JSON.stringify(normalizedSnapshot());
+      return true;
+    }catch(_e){ return false; }
+  };
+  try{
+    if(tryRestore(localStorage.getItem(STORAGE_KEY))) return;
+    // 主保存が破損している場合は、直前の正常バックアップから自動復旧する。
+    if(tryRestore(localStorage.getItem(STORAGE_BACKUP_KEY))) saveState();
+  }catch(_e){}
+}
+
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function guardRuntimeState(){
+  let changed=false;
+  const finite=(v,fallback)=>Number.isFinite(v)?v:fallback;
+  const fixInt=(obj,key,min,max)=>{
+    const next=clamp(Math.trunc(finite(Number(obj[key]),min)),min,max);
+    if(obj[key]!==next){ obj[key]=next; changed=true; }
+  };
+
+  for(const side of ["left","right"]){
+    const p=S.players[side] || (S.players[side]={yuko:0,waza:0,shido:0});
+    fixInt(p,"yuko",0,9);
+    fixInt(p,"waza",0,1);
+    fixInt(p,"shido",0,2);
+  }
+
+  if(S.osaSide!=="left" && S.osaSide!=="right"){ S.osaSide="left"; changed=true; }
+
+  const setting=clamp(finite(Number(S.matchSetting),DEFAULT_MATCH),0,599);
+  if(S.matchSetting!==setting){ S.matchSetting=setting; changed=true; }
+
+  let match=finite(Number(S.matchLeft),S.golden?0:S.matchSetting);
+  match=S.golden?Math.max(0,match):clamp(match,0,599);
+  if(S.matchLeft!==match){ S.matchLeft=match; changed=true; }
+
+  const osa=clamp(finite(Number(S.osaTime),0),0,20);
+  if(S.osaTime!==osa){ S.osaTime=osa; changed=true; }
+
+  for(const side of ["left","right"]){
+    const best=clamp(finite(Number(S.osaBest && S.osaBest[side]),0),0,20);
+    if(!S.osaBest) S.osaBest={left:0,right:0};
+    if(S.osaBest[side]!==best){ S.osaBest[side]=best; changed=true; }
+  }
+
+  const y=clamp(Math.trunc(finite(Number(S.yukoSec),DEFAULT_YUKO)),1,18);
+  let w=clamp(Math.trunc(finite(Number(S.wazaSec),DEFAULT_WAZA)),2,19);
+  if(w<=y) w=Math.min(19,y+1);
+  if(S.yukoSec!==y){ S.yukoSec=y; changed=true; }
+  if(S.wazaSec!==w){ S.wazaSec=w; changed=true; }
+
+  if(S.matchAnchor!==null && !Number.isFinite(S.matchAnchor)){ S.matchAnchor=null; changed=true; }
+  if(S.osaStarted!==null && !Number.isFinite(S.osaStarted)){ S.osaStarted=null; changed=true; }
+
+  S.matchRunning=!!S.matchRunning;
+  S.golden=!!S.golden;
+  S.gsNotice=!!S.gsNotice;
+  S.osaRunning=!!S.osaRunning;
+  return changed;
+}
+
+function isStandaloneDisplay(){
+  try{
+    return window.matchMedia("(display-mode: standalone)").matches ||
+           window.navigator.standalone===true;
+  }catch(_e){ return false; }
+}
+async function enterRefereeDisplay(){
+  // PWA起動時は既にアプリ表示なので、余計なFullscreen要求は行わない。
+  if(!isStandaloneDisplay() && !document.fullscreenElement){
+    try{ if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); }catch(_e){}
+  }
+  // 対応端末では縦向きを固定。未対応環境では何もしない。
+  try{ if(screen.orientation && screen.orientation.lock) await screen.orientation.lock("portrait-primary"); }catch(_e){}
+}
+
+function tryInitialFullscreen(){
+  // ブラウザによってはユーザー操作なしのFullscreen要求が拒否される。
+  // 起動直後に一度試し、失敗時は画面タップで再試行する。
+  try{
+    if(!isStandaloneDisplay() && !document.fullscreenElement && document.documentElement.requestFullscreen){
+      var p=document.documentElement.requestFullscreen();
+      if(p && typeof p.catch==="function") p.catch(function(){});
+    }
+  }catch(_e){}
+}
+
+function isTapInsideControlPanel(target){
+  var panel=$("controlPanel");
+  if(!panel || !target) return false;
+  return panel===target || panel.contains(target);
+}
+
+function fullscreenFallbackFromTap(e){
+  if(isSettingsOpen()) return;
+  if(isStandaloneDisplay() || document.fullscreenElement) return;
+  if(isTapInsideControlPanel(e.target)) return;
+  enterRefereeDisplay();
+}
+
+function score(side,kind,d){
+  if(isSettingsOpen()) return;
+
+  const p=S.players[side];
+  const key=kind==="yuko"?"yuko":kind==="waza"?"waza":kind==="shido"?"shido":null;
+  if(!key) return;
+  const max=key==="yuko"?9:key==="waza"?1:2;
+  const next=clamp(p[key]+d,0,max);
+  if(next===p[key]) return;
+p[key]=next;
+  scheduleSave(); render();
+}
+function award(side,t){
+  const p=S.players[side];
+  if(p.waza===0 && t>=S.wazaSec && t<20){
+p.waza=1;
+  }else if(t>=S.yukoSec && t<S.wazaSec && p.yuko<9){
+p.yuko=clamp(p.yuko+1,0,9);
+  }
+}
+function startOsa(side){
+  if(!S.matchRunning) return;
+
+  var previousSide=(side==="left")?"right":"left";
+
+  // 反対側が動作中なら、その時点の秒数で得点判定してから0へ戻す。
+  if(S.osaRunning && S.osaSide===previousSide){
+    var now=performance.now()/1000;
+    if(S.osaStarted!==null){
+      S.osaTime=Math.max(0,now-S.osaStarted);
+      S.osaBest[previousSide]=Math.max(S.osaBest[previousSide],S.osaTime);
+    }
+    stopOsa(previousSide,true);
+    S.osaBest[previousSide]=0;
+    S.osaTime=0;
+    S.osaStarted=null;
+  }
+
+  // 反対側が一時停止中なら、残っている秒数で得点判定してから0へ戻す。
+  if(!S.osaRunning && S.osaBest[previousSide]>0){
+    var pausedTime=S.osaBest[previousSide];
+    award(previousSide,pausedTime);
+    S.osaBest[previousSide]=0;
+    S.osaTime=0;
+    S.osaStarted=null;
+  }
+
+  // 新しい側は0秒から開始。
+  S.osaBest[side]=0;
+  S.osaSide=side;
+  S.osaTime=0;
+  S.osaRunning=true;
+  S.osaStarted=performance.now()/1000;
+  scheduleSave();
+  render();
+}
+function stopOsa(side=S.osaSide,doAward=true){
+  if(!S.osaRunning || S.osaSide!==side) return;
+  if(S.osaStarted!==null) S.osaTime=Math.max(0,performance.now()/1000-S.osaStarted);
+  S.osaRunning=false; S.osaBest[side]=Math.max(S.osaBest[side],S.osaTime); S.osaStarted=null;
+  if(doAward) award(side,S.osaTime); scheduleSave(); render();
+}
+function toggleOsa(side){
+  if(isSettingsOpen()) return;
+
+  S.osaRunning && S.osaSide===side ? stopOsa(side,true) : startOsa(side);
+}
+function resetOsa(side){
+  if(isSettingsOpen() || S.osaRunning) return;
+
+  // 赤/白どちらのリセットボタンでも、両方の抑込タイマーを0へ初期化する。
+  // リセット操作では秒数判定による得点処理を行わない。
+  S.osaRunning=false;
+  S.osaStarted=null;
+  S.osaTime=0;
+  S.osaBest.left=0;
+  S.osaBest.right=0;
+  scheduleSave();
+  render();
+}
+function startMatch(){
+  var resumeAdjustedOsa=!!S.osaManualAdjusted;
+  const now=performance.now();
+
+  // 再始動時は抑込カウントを0へ戻す。
+  if(S.matchStartedOnce){
+    S.osaRunning=false;
+    S.osaStarted=null;
+    if(!S.osaManualAdjusted){
+      S.osaTime=0;
+      S.osaBest.left=0;
+      S.osaBest.right=0;
+    }
+  }
+
+  S.matchStartedOnce=true;
+  S.osaManualAdjusted=false;
+  S.matchRunning=true;
+  if(resumeAdjustedOsa){
+    S.osaRunning=true;
+    S.osaStarted=performance.now()/1000-S.osaTime;
+  }
+  S.last=now;
+  S.matchAnchor=S.golden ? now/1000-S.matchLeft : now/1000+S.matchLeft;
+  updateWakeLock();
+  scheduleSave(); render();
+}
+function stopMatch(){
+  const now=performance.now()/1000;
+  if(S.matchRunning && S.matchAnchor!==null){
+    S.matchLeft=S.golden ? Math.max(0,now-S.matchAnchor) : Math.max(0,S.matchAnchor-now);
+  }
+
+  // 試合タイマー停止時、動作中の抑込タイマーも同時に停止する。
+  if(S.osaRunning){
+    if(S.osaStarted!==null){
+      S.osaTime=Math.max(0,now-S.osaStarted);
+      S.osaBest[S.osaSide]=Math.max(S.osaBest[S.osaSide],S.osaTime);
+    }
+    S.osaRunning=false;
+    S.osaStarted=null;
+  }
+
+  S.matchRunning=false;
+  S.matchAnchor=null;
+  updateWakeLock();
+  scheduleSave(); render();
+}
+function toggleMatch(){
+  if(isSettingsOpen()) return;
+
+  if(S.matchRunning){
+    stopMatch();
+  }else{
+    startMatch();
+    // スマホでは計時開始を最優先し、その後に全画面/縦固定を試行する。
+    Promise.resolve().then(()=>enterRefereeDisplay()).catch(()=>{});
+  }
+}
+function startGS(){
+  if(S.matchRunning || S.golden || S.matchLeft>0.0001) return;
+  // GSボタンではGS状態へ切り替えるだけで、試合タイマーは開始しない。
+  S.golden=true;
+  S.gsNotice=true;
+  S.matchLeft=0;
+  S.matchRunning=false;
+  S.matchAnchor=null;
+  updateWakeLock();
+  scheduleSave();
+  render();
+}
+function gsAction(){
+  if(!canUseStoppedControls()) return;
+
+  if(!S.golden){ if(S.matchLeft<=0.0001) startGS(); return; }
+  S.gsNotice=!S.gsNotice; scheduleSave(); render();
+}
+function isSettingsOpen(){
+  var d=$("settingsDialog"); return !!(d && d.open);
+}
+function canUseStoppedControls(){
+  return !S.matchRunning && !isSettingsOpen();
+}
+function adjustMatch(sec){
+  if(!canUseStoppedControls()) return;
+
+  // Time分- は「分」だけを1減らし、秒表示は変更しない。
+  // 例: 4:35→3:35→2:35→1:35→0:35。分が0ならそれ以上は減らさない。
+  if(sec===-60){
+    var whole=Math.floor(S.matchLeft);
+    var minutes=Math.floor(whole/60);
+    var seconds=whole%60;
+    if(minutes<=0) return;
+    S.matchLeft=(minutes-1)*60+seconds;
+  }else{
+    S.matchLeft=clamp(S.matchLeft+sec,0,599);
+  }
+  scheduleSave();
+  render();
+}
+function adjustOsa(sec){
+  if(!canUseStoppedControls()) return;
+  S.osaTime=clamp(S.osaTime+sec,0,20); S.osaBest[S.osaSide]=S.osaTime;
+  // 試合停止中の手動補正では、実時間計測を開始しない。
+  if(S.osaRunning) S.osaStarted=null;
+  S.osaManualAdjusted=true; scheduleSave(); render();
+}
+function resetMatchToDefault(){
+  // 試合タイマーまたは抑込タイマー作動中は、試合タイマーリセットを無効化。
+  if(S.matchRunning || S.osaRunning) return;
+
+  // リセット長押し：試合状態・全カウンターをリセットし、保存済み試合時間を再適用する。
+  S.matchRunning=false;
+  S.golden=false;
+  S.gsNotice=false;
+  S.matchLeft=S.matchSetting;
+  S.matchStartedOnce=false; S.osaManualAdjusted=false;
+  S.matchAnchor=null;
+  S.last=performance.now();
+
+  S.players.left.yuko=0;
+  S.players.left.waza=0;
+  S.players.left.shido=0;
+  S.players.right.yuko=0;
+  S.players.right.waza=0;
+  S.players.right.shido=0;
+
+  S.osaRunning=false;
+  S.osaSide="left";
+  S.osaTime=0;
+  S.osaStarted=null;
+  S.osaBest.left=0;
+  S.osaBest.right=0;
+
+  // 有効秒・技あり秒は設定値を保持し、リセット後も同じ設定を適用する。
+
+  settingsResetUnlocked=true;
+  updateWakeLock();
+  scheduleSave();
+  render();
+}
+
+let wakeLock=null;
+let lastWakeActive=null;
+function freezeForHidden(){
+  if(document.hidden){
+    // rAF停止中に試合/押さえ込みだけ実時間で進まないよう現在値を確定する。
+    const now=performance.now()/1000;
+    if(S.matchRunning && S.matchAnchor!==null){
+      S.matchLeft=S.golden ? Math.max(0,now-S.matchAnchor) : Math.max(0,S.matchAnchor-now);
+      S.matchAnchor=null;
+    }
+    if(S.osaRunning && S.osaStarted!==null){
+      S.osaTime=Math.max(0,now-S.osaStarted);
+      S.osaBest[S.osaSide]=Math.max(S.osaBest[S.osaSide],S.osaTime);
+      S.osaStarted=null;
+    }
+    saveState();
+  }
+}
+function resumeFromHidden(){
+  const now=performance.now();
+  S.last=now;
+  if(S.matchRunning){
+    S.matchAnchor=S.golden ? now/1000-S.matchLeft : now/1000+S.matchLeft;
+  }
+  if(S.matchRunning && S.osaRunning && S.osaStarted===null){
+    S.osaStarted=now/1000-S.osaTime;
+  }
+  if(isSettingsOpen()){
+    S.matchRunning=false;
+    S.matchAnchor=null;
+  }
+  updateWakeLock();
+  scheduleSave();
+  render();
+}
+async function updateWakeLock(){
+  try{
+    if((S.matchRunning || S.osaRunning) && !document.hidden && 'wakeLock' in navigator){
+      if(!wakeLock){
+        wakeLock=await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener("release",()=>{ wakeLock=null; },{once:true});
+      }
+    }else if(wakeLock){
+      const current=wakeLock;
+      wakeLock=null;
+      await current.release();
+    }
+  }catch(_e){ wakeLock=null; }
+}
+
+let settingsResetUnlocked=false;
+function render(){
+  if($("matchReset")) $("matchReset").disabled=!!(S.matchRunning || S.osaRunning);
+  document.body.classList.toggle("osa-active",!!S.osaRunning);
+  document.body.classList.toggle("osa-left",!!S.osaRunning && S.osaSide==="left");
+  document.body.classList.toggle("osa-right",!!S.osaRunning && S.osaSide==="right");
+  guardRuntimeState();
+  // 試合・抑込のどちらかが動作中なら消灯を防止する。
+  const wakeActive=!!(S.matchRunning || S.osaRunning);
+  if(wakeActive!==lastWakeActive){lastWakeActive=wakeActive;updateWakeLock();}
+  // 通常試合は残り時間なので切り上げ表示。GSは経過時間なので切り捨て表示。
+  // これにより4:00開始直後に3:59へ落ちる表示誤差を防ぐ。
+  const rawTotal=S.golden ? Math.floor(S.matchLeft) : Math.ceil(S.matchLeft);
+  const total=Math.max(0,Math.min(599,rawTotal));
+  $("matchTime").textContent=`${Math.floor(total/60)}:${String(total%60).padStart(2,"0")}`;
+  $("osaTime").textContent=String(Math.floor(clamp(S.osaTime,0,20))).padStart(2,"0");
+  
+  
+
+  // b2.06: Illuminate central 開始 green while running and 待て green after stopping.
+  // Reset returns both signs to gray; pressing GS illuminates GS yellow.
+  const stateLit=!!(S.matchRunning || S.matchStartedOnce);
+  const gsLit=!!(S.golden && S.gsNotice);
+  $("stateText").textContent=S.matchRunning?"開始":"待て";
+  $("stateText").classList.toggle("indicator-active",stateLit);
+  $("gsText").classList.toggle("indicator-active",gsLit);
+  $("stateText").style.color=stateLit?"#ffffff":"#858585";
+  $("gsText").style.color=gsLit?"#ffe600":"#858585";
+
+  for(const [pre,side] of [["l","left"],["r","right"]]){
+    const p=S.players[side];
+    $(pre+"w").textContent=p.waza; $(pre+"y").textContent=p.yuko;
+    $(pre+"s1").classList.toggle("on",p.shido>=1); $(pre+"s2").classList.toggle("on",p.shido>=2);
+  }
+
+  $("redOsa").innerHTML=S.osaRunning&&S.osaSide==="left"?"×":"抑込<br>スタート";
+  $("whiteOsa").innerHTML=S.osaRunning&&S.osaSide==="right"?"×":"抑込<br>スタート";
+  $("redOsa").disabled=!S.matchRunning;
+  $("whiteOsa").disabled=!S.matchRunning;
+  $("redOsaReset").disabled=!!S.osaRunning;
+  $("whiteOsaReset").disabled=!!S.osaRunning;
+  $("redOsaReset").setAttribute("aria-disabled",String($("redOsaReset").disabled));
+  $("whiteOsaReset").setAttribute("aria-disabled",String($("whiteOsaReset").disabled));
+  $("matchBtn").textContent=S.matchRunning?"待て":"はじめ";
+  $("osaPlus").disabled=!!(S.matchRunning);
+  $("osaMinus").disabled=!!(S.matchRunning);
+
+  const modalOpen=isSettingsOpen();
+  const competitionIds=[
+    "matchBtn","matchReset","gsBtn",
+    "redOsa","whiteOsa","redOsaReset","whiteOsaReset",
+    "minPlus","secPlus","osaPlus","minMinus","secMinus","osaMinus"
+  ];
+
+  // 通常時のdisabled状態を毎回再計算する。
+  $("matchReset").disabled=!!(S.matchRunning || S.osaRunning);
+  $("redOsa").disabled=!S.matchRunning;
+  $("whiteOsa").disabled=!S.matchRunning;
+  $("redOsaReset").disabled=!!S.osaRunning;
+  $("whiteOsaReset").disabled=!!S.osaRunning;
+  $("osaPlus").disabled=!!(S.matchRunning);
+  $("osaMinus").disabled=!!(S.matchRunning);
+
+  if(modalOpen){
+    competitionIds.forEach(function(id){
+      var el=$(id);
+      if(el) el.disabled=true;
+    });
+  }
+
+  const stoppedOnly=["minPlus","secPlus","osaPlus","minMinus","secMinus","settingsBtn","osaMinus"];
+  stoppedOnly.forEach(id=>{
+    const el=$(id);
+    var disabled=!canUseStoppedControls();
+    if(id==="settingsBtn") disabled=S.matchRunning || S.matchStartedOnce || !settingsResetUnlocked;
+    el.disabled=disabled;
+    el.setAttribute("aria-disabled",String(el.disabled));
+  });
+  const gsUsable=!S.matchRunning && (S.golden||S.matchLeft<=0.0001);
+  $("gsBtn").disabled=!gsUsable;
+  $("gsBtn").setAttribute("aria-disabled",String($("gsBtn").disabled));
+  $("gsBtn").textContent="GS";
+  $("gsBtn").classList.toggle("gs-on",S.golden && S.gsNotice);
+  $("gsBtn").classList.toggle("gs-off",!(S.golden && S.gsNotice));
+}
+function loop(now){
+  S.last=now;
+  if(S.matchRunning){
+    const nowSec=now/1000;
+    if(S.matchAnchor===null){
+      S.matchAnchor=S.golden ? nowSec-S.matchLeft : nowSec+S.matchLeft;
+    }
+    if(S.golden) S.matchLeft=Math.max(0,nowSec-S.matchAnchor);
+    else{
+      S.matchLeft=Math.max(0,S.matchAnchor-nowSec);
+      if(S.matchLeft<=0){
+        S.matchLeft=0;
+        S.matchAnchor=null;
+        if(S.osaRunning){
+          if(S.osaStarted!==null){
+            S.osaTime=Math.max(0,performance.now()/1000-S.osaStarted);
+            S.osaBest[S.osaSide]=Math.max(S.osaBest[S.osaSide],S.osaTime);
+          }
+          S.osaRunning=false;
+          S.osaStarted=null;
+        }
+        S.matchRunning=false;
+        S.matchAnchor=null;
+        updateWakeLock();
+        scheduleSave();
+      }
+    }
+  }
+  if(S.osaRunning && S.osaStarted!==null){
+    S.osaTime=Math.max(0,performance.now()/1000-S.osaStarted);
+    S.osaBest[S.osaSide]=Math.max(S.osaBest[S.osaSide],S.osaTime);
+    const limit=S.players[S.osaSide].waza===0?20:10;
+    if(S.osaTime>=limit){
+      S.osaTime=limit;
+      if(S.golden && limit===20 && S.matchRunning){ S.matchRunning=false; S.matchAnchor=null; updateWakeLock(); }
+      S.osaRunning=false; S.osaBest[S.osaSide]=Math.max(S.osaBest[S.osaSide],S.osaTime);
+      S.osaStarted=null; award(S.osaSide,S.osaTime); scheduleSave();
+    }
+  }
+  guardRuntimeState();
+  render(); requestAnimationFrame(loop);
+}
+
+document.querySelectorAll("[data-score]").forEach(function(b){
+  b.addEventListener("click",function(){
+    var parts=b.dataset.score.split(",");
+    score(parts[0],parts[1],Number(parts[2]));
+  });
+});
+$("redOsa").addEventListener("click",function(){toggleOsa("left");});
+$("whiteOsa").addEventListener("click",function(){toggleOsa("right");});
+$("redOsaReset").addEventListener("click",function(){resetOsa("left");});
+$("whiteOsaReset").addEventListener("click",function(){resetOsa("right");});
+$("matchBtn").addEventListener("click",function(){
+  toggleMatch();
+});
+$("gsBtn").addEventListener("click",gsAction);
+$("minPlus").addEventListener("click",function(){adjustMatch(60);});
+$("minMinus").addEventListener("click",function(){adjustMatch(-60);});
+$("osaPlus").addEventListener("click",function(){adjustOsa(1);});
+$("osaMinus").addEventListener("click",function(){adjustOsa(-1);});
+
+var secHoldTimer=null, secRepeatTimer=null, secHoldButton=null, secHoldPointerId=null, secSuppressClickUntil=0;
+
+function stopSecRepeat(){
+  if(secHoldTimer){ clearTimeout(secHoldTimer); secHoldTimer=null; }
+  if(secRepeatTimer){ clearInterval(secRepeatTimer); secRepeatTimer=null; }
+  if(secHoldButton && secHoldPointerId!==null){
+    try{
+      if(secHoldButton.hasPointerCapture && secHoldButton.hasPointerCapture(secHoldPointerId)){
+        secHoldButton.releasePointerCapture(secHoldPointerId);
+      }
+    }catch(_e){}
+  }
+  secHoldButton=null;
+  secHoldPointerId=null;
+}
+
+function beginSecRepeat(button,delta,e){
+  if(!canUseStoppedControls() || button.disabled) return;
+  stopSecRepeat();
+  secHoldButton=button;
+  secHoldPointerId=(e && e.pointerId!==undefined)?e.pointerId:null;
+  try{
+    if(secHoldPointerId!==null && button.setPointerCapture) button.setPointerCapture(secHoldPointerId);
+  }catch(_e){}
+
+  secHoldTimer=setTimeout(function(){
+    secHoldTimer=null;
+    secSuppressClickUntil=Date.now()+800;
+    adjustMatch(delta);
+    secRepeatTimer=setInterval(function(){
+      if(!canUseStoppedControls() || button.disabled){
+        stopSecRepeat();
+        return;
+      }
+      adjustMatch(delta);
+    },100);
+  },600);
+}
+
+function bindSecRepeat(button,delta){
+  button.addEventListener("pointerdown",function(e){
+    if(e.isPrimary===false || (e.pointerType==="mouse" && e.button!==0)) return;
+    beginSecRepeat(button,delta,e);
+  });
+  button.addEventListener("pointerup",function(){ stopSecRepeat(); });
+  button.addEventListener("pointercancel",function(){ stopSecRepeat(); });
+  button.addEventListener("lostpointercapture",function(){ stopSecRepeat(); });
+  button.addEventListener("click",function(e){
+    if(Date.now()<secSuppressClickUntil){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      stopSecRepeat();
+      return;
+    }
+    adjustMatch(delta);
+  },true);
+  button.addEventListener("contextmenu",function(e){ e.preventDefault(); });
+}
+
+bindSecRepeat($("secPlus"),1);
+bindSecRepeat($("secMinus"),-1);
+document.addEventListener("visibilitychange",function(){ if(document.hidden) stopSecRepeat(); });
+window.addEventListener("blur",stopSecRepeat);
+
+let resetTapCount=0;
+let resetTapTimer=null;
+function handleResetTripleTap(e){
+  if(S.matchRunning || S.osaRunning || isSettingsOpen()) return;
+  if(e && e.preventDefault) e.preventDefault();
+
+  resetTapCount++;
+  clearTimeout(resetTapTimer);
+
+  if(resetTapCount>=3){
+    resetTapCount=0;
+    resetTapTimer=null;
+    resetMatchToDefault();
+    return;
+  }
+
+  resetTapTimer=setTimeout(function(){
+    resetTapCount=0;
+    resetTapTimer=null;
+  },700);
+}
+$("matchReset").addEventListener("click",handleResetTripleTap);
+$("matchReset").addEventListener("contextmenu",function(e){e.preventDefault();});
+
+const dlg=$("settingsDialog");
+dlg.addEventListener("pointerdown",e=>{
+  if(e.target===dlg) e.stopPropagation();
+});
+dlg.addEventListener("close",()=>{
+  try{ if(document.activeElement && document.activeElement.blur) document.activeElement.blur(); }catch(_e){}
+  S.last=performance.now();
+  guardRuntimeState();
+  render();
+});
+dlg.addEventListener("cancel",e=>{
+  e.preventDefault();
+  dlg.close();
+});
+document.querySelectorAll("[data-step]").forEach(function(b){
+  var holdTimer=null;
+  var repeatTimer=null;
+  var activePointerId=null;
+  var suppressClickUntil=0;
+
+  function info(){
+    var p=b.dataset.step.split(",");
+    return {
+      k:p[0],
+      d:Number(p[1]),
+      id:{m:"setM",s:"setS",y:"setY",w:"setW"}[p[0]],
+      lim:{m:[0,9],s:[0,59],y:[1,18],w:[2,19]}[p[0]]
+    };
+  }
+
+  function stepOnce(){
+    var x=info();
+    $(x.id).textContent=clamp(Number($(x.id).textContent)+x.d,x.lim[0],x.lim[1]);
+  }
+
+  function stopHold(){
+    if(holdTimer){ clearTimeout(holdTimer); holdTimer=null; }
+    if(repeatTimer){ clearInterval(repeatTimer); repeatTimer=null; }
+    if(activePointerId!==null){
+      try{
+        if(b.hasPointerCapture && b.hasPointerCapture(activePointerId)) b.releasePointerCapture(activePointerId);
+      }catch(_e){}
+    }
+    activePointerId=null;
+  }
+
+  // iPhone/Android共通: 設定画面の「試合タイマー 秒」だけ長押し連続。
+  // その他の設定値は従来どおり1タップ1カウント。
+  if(info().k==="s"){
+    b.addEventListener("pointerdown",function(e){
+      if(e.isPrimary===false || (e.pointerType==="mouse" && e.button!==0)) return;
+      stopHold();
+      activePointerId=(e.pointerId!==undefined)?e.pointerId:null;
+      try{ if(activePointerId!==null && b.setPointerCapture) b.setPointerCapture(activePointerId); }catch(_e){}
+      holdTimer=setTimeout(function(){
+        holdTimer=null;
+        suppressClickUntil=Date.now()+800;
+        stepOnce();
+        repeatTimer=setInterval(stepOnce,100);
+      },600);
+    });
+    b.addEventListener("pointerup",stopHold);
+    b.addEventListener("pointercancel",stopHold);
+    b.addEventListener("lostpointercapture",stopHold);
+    b.addEventListener("click",function(e){
+      if(Date.now()<suppressClickUntil){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        stopHold();
+        return;
+      }
+      stepOnce();
+    },true);
+    b.addEventListener("contextmenu",function(e){e.preventDefault();});
+  }else{
+    b.addEventListener("click",function(e){
+      if(e && e.isTrusted===false) return;
+      stepOnce();
+    });
+  }
+
+  document.addEventListener("visibilitychange",function(){ if(document.hidden) stopHold(); });
+  window.addEventListener("blur",stopHold);
+});
+$("cancelSettings").addEventListener("click",function(){
+  saveState();
+  dlg.close();
+  location.reload();
+});
+dlg.addEventListener("close",function(){render();});
+$("saveSettings").addEventListener("click",function(){
+  if(!dlg.open) return;
+  const m=+$("setM").textContent,s=+$("setS").textContent,y=+$("setY").textContent,w=+$("setW").textContent;
+  if(!(1<=y && y<w && w<20)){alert("抑秒数は「有効 < 技あり < 20秒」にしてください。");return}
+  S.matchSetting=m*60+s;
+  if(!S.matchRunning && !S.golden) S.matchLeft=S.matchSetting;
+  S.yukoSec=y; S.wazaSec=w;
+  saveState();
+  dlg.close();
+  location.reload();
+});
+
+
+function startupSelfCheck(){
+  const requiredIds=[
+    "matchTime","osaTime","osaLabel","stateText","gsText",
+    "lw","ly","ls1","ls2","rw","ry","rs1","rs2",
+    "redOsa","whiteOsa","redOsaReset","whiteOsaReset",
+    "matchBtn","matchReset","gsBtn","settingsBtn","settingsDialog","versionTag"
+  ];
+  const missing=requiredIds.filter(id=>!$(id));
+  const stateOk=!!(S.players && S.players.left) && !!(S.players && S.players.right) &&
+                Number.isFinite(Number(S.matchLeft)) &&
+                Number.isFinite(Number(S.osaTime));
+  if(missing.length || !stateOk){
+    S.matchRunning=false;
+    S.osaRunning=false;
+    S.matchAnchor=null;
+    S.osaStarted=null;
+    console.error("Judo Timer startup self-check failed",{missing,stateOk});
+    return false;
+  }
+  return true;
+}
+
+restoreState();
+startupSelfCheck();
+$("versionTag").innerHTML='<span>Copyright f.yaz 2026</span><span style="margin-left:18px">'+APP_VERSION+'</span>';
+$("versionTag").style.cssText="font-size:10px;color:#444;text-align:right;padding-right:2px;white-space:nowrap;";
+render();
+
+tryInitialFullscreen();
+document.addEventListener("click",fullscreenFallbackFromTap,true);
+setInterval(()=>{ guardRuntimeState(); saveState(); },2000);
+window.addEventListener("pagehide",()=>{ guardRuntimeState(); saveState(); });
+window.addEventListener("beforeunload",()=>{ guardRuntimeState(); saveState(); });
+window.addEventListener("pageshow",resumeFromHidden);
+window.addEventListener("resize",()=>{ S.last=performance.now(); render(); });
+window.addEventListener("orientationchange",()=>setTimeout(()=>{
+  S.last=performance.now();
+  if(S.matchRunning) updateWakeLock();
+  render();
+},80));
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden) freezeForHidden();
+  else resumeFromHidden();
+});
+document.addEventListener("fullscreenchange",()=>{
+  S.last=performance.now();
+  if(S.matchRunning) updateWakeLock();
+  render();
+});
+
+/* b2.06 PWA mode:
+   manifest + Service Worker を有効化し、ホーム画面起動とオフライン利用に対応。 */
+(function(){
+  try{
+    if("serviceWorker" in navigator){
+      window.addEventListener("load",function(){
+        navigator.serviceWorker.register("./sw.js",{scope:"./"}).catch(function(){});
+      });
+    }
+  }catch(e){}
+})();
+if(window.__setJudoDiag) window.__setJudoDiag("b2.06 JS OK");
+document.addEventListener("click",function(e){
+  var t=e && e.target;
+  if(t && t.tagName==="BUTTON" && window.__setJudoDiag){
+    window.__setJudoDiag("b2.06 CLICK: "+(t.id||t.textContent||"button"));
+  }
+},true);
+requestAnimationFrame(loop);
+</script>
+
+<script>
+
+/* b2.06 unified PWA environment helper */
+(function(){
+  try{
+    var standalone =
+      (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+      (window.navigator && window.navigator.standalone === true);
+    document.documentElement.classList.toggle("pwa-standalone", !!standalone);
+    document.documentElement.classList.toggle(
+      "ios-device",
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+    );
+    document.documentElement.classList.toggle("android-device", /Android/i.test(navigator.userAgent));
+  }catch(e){}
+})();
+
+</script>
+<script>
+/* b2.06 settings panel: only available after full reset, until first start */
+(function(){
+const panel=document.getElementById("bottomSettings");
+let editing=false;
+const $p=id=>document.getElementById(id);
+function sync(){
+ $p("bm").textContent=Math.floor(S.matchSetting/60);
+ $p("by").textContent=S.yukoSec;
+ $p("bw").textContent=S.wazaSec;
+ panel.classList.toggle("locked",!editing);
+ $p("settingsMode").textContent=editing?"変更可能":"変更不可";
+ panel.querySelectorAll("button").forEach(b=>b.disabled=!editing);
+}
+$p("settingsBtn").addEventListener("click",function(){
+ if(S.matchRunning || S.matchStartedOnce || !settingsResetUnlocked)return;
+ editing=!editing;sync();
+});
+panel.querySelectorAll("[data-bottom]").forEach(b=>b.addEventListener("click",function(){
+ if(!editing || S.matchRunning || S.matchStartedOnce || !settingsResetUnlocked)return;
+ const [kind,delta]=b.dataset.bottom.split(",");
+ const d=Number(delta);
+ if(kind==="m"){
+   const sec=S.matchSetting%60;
+   S.matchSetting=clamp(Math.floor(S.matchSetting/60)+d,0,9)*60+sec;
+   if(!S.golden)S.matchLeft=S.matchSetting;
+ }else if(kind==="y")S.yukoSec=clamp(S.yukoSec+d,1,S.wazaSec-1);
+ else if(kind==="w")S.wazaSec=clamp(S.wazaSec+d,S.yukoSec+1,19);
+ saveState();render();sync();
+}));
+$p("matchBtn").addEventListener("click",function(){
+ if(S.matchStartedOnce){editing=false;sync();}
+});
+const originalRender=render;
+render=function(){
+ if(S.matchStartedOnce && editing){editing=false;sync();}
+ originalRender();
+ $p("redShidoNum").textContent=S.players.left.shido;
+ $p("whiteShidoNum").textContent=S.players.right.shido;
+};
+sync();render();
+})();
+</script></body>
+</html>
